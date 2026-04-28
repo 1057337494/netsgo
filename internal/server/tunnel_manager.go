@@ -697,10 +697,10 @@ func isPortInRanges(port int, ranges []PortRange) bool {
 
 // findTunnelsAffectedByPortChange finds all tunnels affected by the new port allowlist rules.
 // It scans both runtime tunnels and persisted tunnels for offline clients.
-func (s *Server) findTunnelsAffectedByPortChange(newPorts []PortRange) []affectedTunnel {
+func (s *Server) findTunnelsAffectedByPortChange(newPorts []PortRange) ([]affectedTunnel, error) {
 	// An empty allowlist means no port restriction, so nothing is affected.
 	if len(newPorts) == 0 {
-		return []affectedTunnel{}
+		return []affectedTunnel{}, nil
 	}
 
 	affected := []affectedTunnel{}
@@ -744,7 +744,7 @@ func (s *Server) findTunnelsAffectedByPortChange(newPorts []PortRange) []affecte
 	if s.store != nil {
 		allStored, err := s.store.GetAllTunnels()
 		if err != nil {
-			log.Printf("⚠️ failed to load persisted tunnels for port allocation: %v", err)
+			return nil, fmt.Errorf("load persisted tunnels for port allocation: %w", err)
 		} else {
 			for _, st := range allStored {
 				if st.RemotePort == 0 {
@@ -782,7 +782,7 @@ func (s *Server) findTunnelsAffectedByPortChange(newPorts []PortRange) []affecte
 		}
 	}
 
-	return affected
+	return affected, nil
 }
 
 // markTunnelsPortNotAllowed marks tunnels affected by a port allowlist change as error.
