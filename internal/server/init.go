@@ -91,7 +91,11 @@ func ApplyInit(dataDir string, params InitParams) error {
 		return err
 	}
 	defer func() { _ = adminStore.Close() }()
-	if adminStore.IsInitialized() {
+	initialized, err := adminStore.IsInitializedE()
+	if err != nil {
+		return err
+	}
+	if initialized {
 		return nil
 	}
 
@@ -114,11 +118,18 @@ func LoadRecoverableInitParams(dataDir string) (InitParams, error) {
 		return InitParams{}, err
 	}
 	defer func() { _ = adminStore.Close() }()
-	if !adminStore.IsInitialized() {
+	initialized, err := adminStore.IsInitializedE()
+	if err != nil {
+		return InitParams{}, err
+	}
+	if !initialized {
 		return InitParams{}, fmt.Errorf("server historical data has not been initialized")
 	}
 
-	config := adminStore.GetServerConfig()
+	config, err := adminStore.GetServerConfigE()
+	if err != nil {
+		return InitParams{}, err
+	}
 	allowedPorts := formatAllowedPorts(config.AllowedPorts)
 	if strings.TrimSpace(config.ServerAddr) == "" || allowedPorts == "" {
 		return InitParams{}, fmt.Errorf("server historical data is incomplete")

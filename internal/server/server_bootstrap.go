@@ -107,8 +107,14 @@ func (s *Server) Start() error {
 		}
 	}
 
-	if s.auth.adminStore != nil && !s.auth.adminStore.IsInitialized() {
-		return fmt.Errorf("server is not initialized; use install or init flags to complete setup")
+	if s.auth.adminStore != nil {
+		initialized, err := s.auth.adminStore.IsInitializedE()
+		if err != nil {
+			return fmt.Errorf("failed to read initialization state: %w", err)
+		}
+		if !initialized {
+			return fmt.Errorf("server is not initialized; use install or init flags to complete setup")
+		}
 	}
 
 	s.auth.initRateLimiters()

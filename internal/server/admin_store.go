@@ -107,7 +107,11 @@ func newAdminStoreWithDB(path string, db *sql.DB, closeDB bool) (*AdminStore, er
 		return nil, fmt.Errorf("failed to clean expired sessions: %w", err)
 	}
 
-	if !store.IsInitialized() {
+	initialized, err := store.IsInitializedE()
+	if err != nil {
+		return nil, err
+	}
+	if !initialized {
 		log.Printf("⚠️ Service not yet initialized; please use the install or init command to complete initialization")
 	}
 
@@ -243,13 +247,31 @@ func (s *AdminStore) loadConfigLifecycle(q dbQuerier) (bool, string, error) {
 
 // ========== Initialization ==========
 
-// IsInitialized checks whether the service has been initialized.
-func (s *AdminStore) IsInitialized() bool {
+// IsInitializedE checks whether the service has been initialized and surfaces
+// storage errors to authoritative callsites.
+func (s *AdminStore) IsInitializedE() (bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	initialized, _, err := s.loadConfigLifecycle(s.db)
-	return err == nil && initialized
+	if err != nil {
+		return false, err
+	}
+	return initialized, nil
+}
+
+// IsInitialized checks whether the service has been initialized.
+//
+// This is a best-effort compatibility wrapper for non-authoritative display or
+// legacy paths. Security, routing, mutation, and startup decisions must use
+// IsInitializedE so storage failures fail closed instead of becoming false.
+func (s *AdminStore) IsInitialized() bool {
+	initialized, err := s.IsInitializedE()
+	if err != nil {
+		log.Printf("failed to load initialization state: %v", err)
+		return false
+	}
+	return initialized
 }
 
 // Initialize performs one-time initialization.
@@ -366,23 +388,39 @@ func (s *AdminStore) GetJWTSecret() ([]byte, error) {
 
 // ========== Server Config ==========
 
-// GetServerConfig returns the current server configuration.
-func (s *AdminStore) GetServerConfig() ServerConfig {
+// GetServerConfigE returns the current server configuration and surfaces
+// storage errors to authoritative callsites.
+func (s *AdminStore) GetServerConfigE() (ServerConfig, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	var config ServerConfig
 	err := s.db.QueryRow(`SELECT server_addr FROM server_config WHERE id = 1`).Scan(&config.ServerAddr)
-	if err != nil && err != sql.ErrNoRows {
-		log.Printf("failed to load server config: %v", err)
-		return ServerConfig{}
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return config, nil
+		}
+		return ServerConfig{}, err
 	}
 	ports, err := loadAllowedPorts(s.db)
 	if err != nil {
-		log.Printf("failed to load allowed ports: %v", err)
-		return ServerConfig{ServerAddr: config.ServerAddr}
+		return ServerConfig{}, err
 	}
 	config.AllowedPorts = ports
+	return config, nil
+}
+
+// GetServerConfig returns the current server configuration.
+//
+// This is a best-effort compatibility wrapper for display/enrichment paths.
+// Mutation, routing, and policy decisions must use GetServerConfigE so storage
+// failures fail closed instead of becoming an empty configuration.
+func (s *AdminStore) GetServerConfig() ServerConfig {
+	config, err := s.GetServerConfigE()
+	if err != nil {
+		log.Printf("failed to load server config: %v", err)
+		return ServerConfig{}
+	}
 	return config
 }
 

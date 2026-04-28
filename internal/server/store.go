@@ -2,6 +2,7 @@ package server
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -11,6 +12,8 @@ import (
 const (
 	TunnelBindingClientID = "client_id"
 )
+
+var ErrTunnelNotFound = errors.New("tunnel not found")
 
 // StoredTunnel is a tunnel configuration persisted to storage.
 type StoredTunnel struct {
@@ -365,15 +368,29 @@ func (s *TunnelStore) GetTunnelsByHostname(hostname string) ([]StoredTunnel, err
 	return tunnels, nil
 }
 
-// GetTunnel looks up a single tunnel by stable client_id and name.
-func (s *TunnelStore) GetTunnel(clientID, name string) (StoredTunnel, bool) {
+// GetTunnelE looks up a single tunnel by stable client_id and name and
+// distinguishes not found from storage failure.
+func (s *TunnelStore) GetTunnelE(clientID, name string) (StoredTunnel, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	tunnel, err := scanStoredTunnel(s.db.QueryRow(`SELECT `+tunnelSelectColumns+` FROM tunnels WHERE client_id = ? AND name = ?`, clientID, name))
 	if err == sql.ErrNoRows {
-		return StoredTunnel{}, false
+		return StoredTunnel{}, ErrTunnelNotFound
 	}
+	if err != nil {
+		return StoredTunnel{}, err
+	}
+	return tunnel, nil
+}
+
+// GetTunnel looks up a single tunnel by stable client_id and name.
+//
+// This is a best-effort compatibility wrapper for non-authoritative display or
+// legacy paths. Mutation, routing, restore, and event correctness paths must use
+// GetTunnelE so storage failures are not collapsed into "not found".
+func (s *TunnelStore) GetTunnel(clientID, name string) (StoredTunnel, bool) {
+	tunnel, err := s.GetTunnelE(clientID, name)
 	if err != nil {
 		return StoredTunnel{}, false
 	}
