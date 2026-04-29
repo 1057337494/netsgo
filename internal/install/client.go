@@ -2,9 +2,6 @@ package install
 
 import (
 	"fmt"
-	"os"
-	"os/user"
-	"strconv"
 	"strings"
 
 	"netsgo/internal/svcmgr"
@@ -139,31 +136,6 @@ func defaultClientDeps() clientDeps {
 		DaemonReload:      svcmgr.DaemonReload,
 		EnableAndStart:    svcmgr.EnableAndStart,
 	}
-}
-
-func ensureManagedClientDirs() error {
-	if err := os.MkdirAll(svcmgr.ManagedDataDir+"/client", 0o750); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(svcmgr.ManagedDataDir+"/locks", 0o750); err != nil {
-		return err
-	}
-	account, err := user.Lookup(svcmgr.SystemUser)
-	if err != nil {
-		return nil
-	}
-	uid, err := strconv.Atoi(account.Uid)
-	if err != nil {
-		return err
-	}
-	gid, err := strconv.Atoi(account.Gid)
-	if err != nil {
-		return err
-	}
-	if err := os.Chown(svcmgr.ManagedDataDir+"/client", uid, gid); err != nil {
-		return err
-	}
-	return os.Chown(svcmgr.ManagedDataDir+"/locks", uid, gid)
 }
 
 func boolText(v bool) string {

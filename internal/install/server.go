@@ -3,10 +3,6 @@ package install
 import (
 	"errors"
 	"fmt"
-	"io/fs"
-	"os"
-	"os/user"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -281,35 +277,4 @@ func defaultServerDeps() serverDeps {
 		DaemonReload:   svcmgr.DaemonReload,
 		EnableAndStart: svcmgr.EnableAndStart,
 	}
-}
-
-func ensureManagedServerDirs() error {
-	if err := os.MkdirAll(svcmgr.ManagedDataDir+"/server", 0o750); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(svcmgr.ManagedDataDir+"/locks", 0o750); err != nil {
-		return err
-	}
-	account, err := user.Lookup(svcmgr.SystemUser)
-	if err != nil {
-		return nil
-	}
-	uid, err := strconv.Atoi(account.Uid)
-	if err != nil {
-		return err
-	}
-	gid, err := strconv.Atoi(account.Gid)
-	if err != nil {
-		return err
-	}
-	serverDir := svcmgr.ManagedDataDir + "/server"
-	if err := filepath.WalkDir(serverDir, func(path string, _ fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		return os.Chown(path, uid, gid)
-	}); err != nil {
-		return err
-	}
-	return os.Chown(svcmgr.ManagedDataDir+"/locks", uid, gid)
 }
