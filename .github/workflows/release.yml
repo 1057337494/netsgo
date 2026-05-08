@@ -163,12 +163,14 @@ jobs:
             }')"
           status="$(curl -sS -o /tmp/cnb-release.json -w '%{http_code}' \
             -H "Authorization: Bearer $CNB_PASSWORD" \
-            -H "Content-Type: application/json" \
+            -H "Accept: application/vnd.cnb.api+json" \
+            -H "Content-Type: application/vnd.cnb.api+json" \
             -d "$body" \
             "$api")"
           if [ "$status" = "409" ] || [ "$status" = "422" ]; then
             status="$(curl -sS -o /tmp/cnb-release.json -w '%{http_code}' \
               -H "Authorization: Bearer $CNB_PASSWORD" \
+              -H "Accept: application/vnd.cnb.api+json" \
               "https://api.cnb.cool/${{ steps.cnb-vars.outputs.slug }}/-/releases/tags/${GITHUB_REF_NAME}")"
           fi
           if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
@@ -189,7 +191,8 @@ jobs:
             body="$(jq -n --arg name "$name" --argjson size "$size" '{asset_name: $name, overwrite: true, size: $size, ttl: 0}')"
             status="$(curl -sS -o /tmp/cnb-upload.json -w '%{http_code}' \
               -H "Authorization: Bearer $CNB_PASSWORD" \
-              -H "Content-Type: application/json" \
+              -H "Accept: application/vnd.cnb.api+json" \
+              -H "Content-Type: application/vnd.cnb.api+json" \
               -d "$body" \
               "$base/asset-upload-url")"
             if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
@@ -202,6 +205,7 @@ jobs:
             status="$(curl -sS -o /tmp/cnb-confirm.json -w '%{http_code}' \
               -X POST \
               -H "Authorization: Bearer $CNB_PASSWORD" \
+              -H "Accept: application/vnd.cnb.api+json" \
               "https://api.cnb.cool${verify_url}?ttl=0")"
             if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
               cat /tmp/cnb-confirm.json >&2
