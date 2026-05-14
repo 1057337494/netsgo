@@ -195,7 +195,7 @@ function buildTrafficTrendChartState(
 
 export function TrafficChart({ clientId, tunnels }: TrafficChartProps) {
   const [range, setRange] = useState<ClientTrafficRange>('60s');
-  const { data, isLoading, isError, error, isFetching } = useClientTraffic(clientId, range);
+  const { data, isLoading, isError, error } = useClientTraffic(clientId, range);
 
   const { chartConfig, chartData, tunnelSeries } = useMemo(
     () => buildTrafficTrendChartState(data, tunnels, range),
@@ -215,7 +215,6 @@ export function TrafficChart({ clientId, tunnels }: TrafficChartProps) {
           </div>
           <p className="text-sm text-muted-foreground">
             {getRangeSummary(range)} · {tunnelSeries.length} 条隧道
-            {isFetching && !isLoading ? ' · 刷新中…' : ''}
           </p>
         </div>
 

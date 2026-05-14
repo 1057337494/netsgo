@@ -49,9 +49,27 @@ function IconActionButton({
   );
 }
 
-function DashboardClientNetworkInfo({ client }: { client: Client }) {
+function DashboardClientNetworkInfo({ client, compact = false }: { client: Client; compact?: boolean }) {
   const privateIP = client.info.ip || '-';
   const publicIP = client.info.public_ipv4 || client.info.public_ipv6 || client.last_ip || '-';
+
+  if (compact) {
+    return (
+      <div className="grid min-w-0 grid-cols-2 gap-3">
+        <CopyableIpLine
+          primary
+          title="公网 IP"
+          icon={<Globe className="h-3.5 w-3.5" />}
+          value={publicIP}
+        />
+        <CopyableIpLine
+          title="内网 IP"
+          icon={<Wifi className="h-3.5 w-3.5" />}
+          value={privateIP}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-1.5 min-w-0">
@@ -70,50 +88,64 @@ function DashboardClientNetworkInfo({ client }: { client: Client }) {
   );
 }
 
+function MobileInfoItem({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[0.7rem] font-medium uppercase text-muted-foreground/70">{label}</div>
+      <div className="mt-1 min-w-0 text-sm text-foreground">{children}</div>
+    </div>
+  );
+}
+
 function ClientMobileCard({
   client,
   onNavigate,
-  onDelete,
 }: {
   client: Client;
   onNavigate: () => void;
-  onDelete: () => void;
 }) {
   return (
-    <div className="p-4 flex flex-col gap-3 border-b border-border/40 last:border-b-0">
-      <div className="flex items-center justify-between">
-        <span className="font-medium text-foreground text-sm truncate mr-2">{getClientDisplayName(client)}</span>
-        {client.online ? (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 text-xs font-medium shrink-0">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            在线
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-xs font-medium shrink-0">
-            <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
-            离线
-          </span>
-        )}
+    <div className="flex flex-col gap-3 border-b border-border/40 p-4 last:border-b-0">
+      <button
+        type="button"
+        className="min-w-0 truncate text-left text-base font-semibold text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        onClick={onNavigate}
+      >
+        {getClientDisplayName(client)}
+      </button>
+
+      <div className="min-w-0">
+        <DashboardClientNetworkInfo client={client} compact />
       </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <DashboardClientNetworkInfo client={client} />
-        <span>{client.info.os}/{client.info.arch}</span>
-        {client.stats && (
-          <span className="flex items-center gap-2">
-            <span className="flex items-center gap-1"><Cpu className="w-3 h-3" />{formatPercent(client.stats.cpu_usage)}</span>
-            <span className="flex items-center gap-1"><HardDrive className="w-3 h-3" />{formatPercent(client.stats.mem_usage)}</span>
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border/40 pt-3">
+        <MobileInfoItem label="系统">
+          <span className="block truncate" title={`${client.info.os}/${client.info.arch}`}>
+            {client.info.os}/{client.info.arch}
           </span>
-        )}
-      </div>
-      <div className="flex items-center gap-1 -ml-2">
-        <IconActionButton label="查看详情" onClick={onNavigate}>
-          <Eye className="h-4 w-4" />
-        </IconActionButton>
-        {!client.online && (
-          <IconActionButton label="删除离线节点" variant="destructive" onClick={onDelete}>
-            <Trash2 className="h-4 w-4" />
-          </IconActionButton>
-        )}
+        </MobileInfoItem>
+        <MobileInfoItem label="资源">
+          {client.online && client.stats ? (
+            <span className="flex min-w-0 items-center gap-3 text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <Cpu className="h-3.5 w-3.5 shrink-0" />
+                {formatPercent(client.stats.cpu_usage)}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <HardDrive className="h-3.5 w-3.5 shrink-0" />
+                {formatPercent(client.stats.mem_usage)}
+              </span>
+            </span>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          )}
+        </MobileInfoItem>
       </div>
     </div>
   );
@@ -170,7 +202,7 @@ function DashboardClientDesktopRow({
       </td>
       <td className="px-6 py-3 text-muted-foreground">{client.info.os} / {client.info.arch}</td>
       <td className="px-6 py-3">
-        {client.stats ? (
+        {client.online && client.stats ? (
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1"><Cpu className="w-3 h-3 text-muted-foreground" /> {formatPercent(client.stats.cpu_usage)}</span>
             <span className="flex items-center gap-1"><HardDrive className="w-3 h-3 text-muted-foreground" /> {formatPercent(client.stats.mem_usage)}</span>
@@ -237,7 +269,6 @@ export function DashboardClientTableContent({
               key={client.id}
               client={client}
               onNavigate={() => navigateToClient(client.id)}
-              onDelete={() => onDelete?.(client)}
             />
           ))
         )}

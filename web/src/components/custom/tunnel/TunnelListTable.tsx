@@ -506,9 +506,9 @@ function TunnelStatusBadge({
 
   return (
     <div className="flex flex-col gap-1 items-start">
-      <Badge variant="outline" className={badgeClassName}>
+      <Badge variant="outline" className={cn(badgeClassName, 'px-2 sm:px-2.5')} aria-label={status.label}>
         <span className={dotClassName} />
-        {status.label}
+        <span className="hidden sm:inline">{status.label}</span>
         {status.key === 'error' && error && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -521,7 +521,7 @@ function TunnelStatusBadge({
         )}
       </Badge>
       {status.description && (status.key !== 'error' || !error) && (
-        <p className="text-[11px] text-muted-foreground">{status.description}</p>
+        <p className="hidden text-[11px] text-muted-foreground sm:block">{status.description}</p>
       )}
     </div>
   );

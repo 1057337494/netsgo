@@ -154,7 +154,7 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
       </div>
 
       {/* Hardware Stats */}
-      {stats && (
+      {isOnline && stats && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 bg-muted/5">
           {/* CPU */}
           <div className="p-4 sm:p-5 flex flex-col gap-3 border-b sm:border-b lg:border-b-0 border-border/40 sm:border-r">
