@@ -135,7 +135,7 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
               <span className="truncate">{formatBandwidthLimit(client.egress_bps)}</span>
             </span>
           </span>
-          <span className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="group/version-update inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
             <span className="truncate">{info.version || '-'}</span>
             <VersionUpdateIndicator
               target={{

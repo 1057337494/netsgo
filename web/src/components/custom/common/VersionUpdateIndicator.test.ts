@@ -78,7 +78,7 @@ describe('VersionUpdateIndicator', () => {
       }),
     }));
 
-    expect(markup).toContain('请在运行 NetsGo server 的机器上执行以下命令');
+    expect(markup).toContain('在 Server 所在机器执行以下命令升级');
     expect(markup).toContain('scripts/upgrade.sh');
     expect(markup).toContain('--source cnb --channel stable -y');
     expect(markup).toContain('--source github --channel stable -y');

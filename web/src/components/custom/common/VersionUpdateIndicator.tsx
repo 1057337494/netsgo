@@ -1,4 +1,4 @@
-import { CircleAlert, Copy, RefreshCw } from 'lucide-react';
+import { CircleAlert, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
   useForceVersionCheck,
@@ -7,6 +7,8 @@ import {
 } from '@/hooks/use-version-check';
 import type { VersionCheckResult } from '@/types';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { CopyButton } from './CopyButton';
 import { manualVersionCheckToast } from './version-update-toast';
 import {
   Dialog,
@@ -29,13 +31,9 @@ function displayVersion(version?: string) {
 
 function targetInstruction(kind: 'server' | 'client') {
   if (kind === 'client') {
-    return '请在该 client 所在机器上执行以下命令。不要在 server 机器上执行，除非 server 与该 client 本来就在同一台机器。该命令会下载并验证可信的 NetsGo release，然后升级并重启本机所有 NetsGo 托管服务。';
+    return '在该 Client 所在机器执行以下命令升级，过程中会重启 NetsGo 服务。不要在 Server 机器上执行。';
   }
-  return '请在运行 NetsGo server 的机器上执行以下命令。该命令会下载并验证可信的 NetsGo release，然后升级并重启本机所有 NetsGo 托管服务。';
-}
-
-function copy(text: string) {
-  void navigator.clipboard?.writeText(text);
+  return '在 Server 所在机器执行以下命令升级，过程中会重启 NetsGo 服务。';
 }
 
 export function VersionUpdateContent({
@@ -76,9 +74,11 @@ export function VersionUpdateContent({
               <div className="text-xs text-muted-foreground">{name}</div>
               <div className="flex items-start gap-2 rounded-md bg-muted p-2">
                 <code className="min-w-0 flex-1 break-all text-xs text-foreground">{command}</code>
-                <Button type="button" variant="ghost" size="icon-xs" onClick={() => copy(command)}>
-                  <Copy className="size-3.5" />
-                </Button>
+                <CopyButton
+                  value={command}
+                  title={`复制${name}升级命令`}
+                  className="inline-flex size-6 items-center justify-center rounded-[min(var(--radius-md),10px)] transition-colors hover:bg-background/70"
+                />
               </div>
             </div>
           ))}
@@ -133,8 +133,12 @@ export function VersionUpdateIndicator({ target, label = '运行版本' }: Versi
         title={manualFailed ? '检查失败' : '检查更新'}
         disabled={forceCheck.isPending}
         onClick={handleManualCheck}
+        className={cn(
+          'size-4 opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 group-hover/version-update:opacity-100',
+          forceCheck.isPending && 'opacity-100',
+        )}
       >
-        <RefreshCw className={`size-3.5 ${forceCheck.isPending ? 'animate-spin' : ''}`} />
+        <RefreshCw className={cn('size-3', forceCheck.isPending && 'animate-spin')} />
       </Button>
     );
   }
@@ -144,10 +148,10 @@ export function VersionUpdateIndicator({ target, label = '运行版本' }: Versi
       <DialogTrigger asChild>
         <button
           type="button"
-          className="inline-flex shrink-0 items-center justify-center text-amber-500 transition-colors hover:text-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="inline-flex size-4 shrink-0 items-center justify-center text-amber-500 transition-colors hover:text-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           aria-label={`${label}可更新到 ${data?.latest_version}`}
         >
-          <CircleAlert className="size-4" />
+          <CircleAlert className="size-3.5" />
         </button>
       </DialogTrigger>
       <DialogContent>
@@ -156,7 +160,7 @@ export function VersionUpdateIndicator({ target, label = '运行版本' }: Versi
             <DialogHeader>
               <DialogTitle>发现可用更新</DialogTitle>
               <DialogDescription>
-                {label}可以从 {displayVersion(data.current_version || target.version)} 更新到 {data.latest_version}。
+                可更新：{displayVersion(data.current_version || target.version)} → {data.latest_version}
               </DialogDescription>
             </DialogHeader>
             <VersionUpdateContent data={data} target={target} />

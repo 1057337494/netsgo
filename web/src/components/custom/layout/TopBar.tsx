@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Monitor, Zap, MonitorOff, Pause
+  Monitor, Zap, MonitorOff, Pause, Github, Star
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
@@ -64,6 +64,25 @@ export function DualTriggerCard({ triggers, children }: { triggers: React.ReactN
         {children}
       </PopoverContent>
     </Popover>
+  );
+}
+
+const GITHUB_REPO_URL = 'https://github.com/zsio/netsgo';
+
+function GitHubStarLink() {
+  return (
+    <a
+      href={GITHUB_REPO_URL}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/50 bg-muted/30 px-2 text-xs font-medium text-muted-foreground transition-colors hover:border-border hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      title="去 GitHub 给 NetsGo 点 Star"
+      aria-label="去 GitHub 给 NetsGo 点 Star"
+    >
+      <Github className="h-3.5 w-3.5" />
+      <span className="hidden sm:inline">Star</span>
+      <Star className="h-3.5 w-3.5 text-amber-500" />
+    </a>
   );
 }
 
@@ -201,6 +220,9 @@ function TopBarInner() {
           </div>
         )}
 
+        <div className="flex items-center justify-end">
+          <GitHubStarLink />
+        </div>
       </header>
     </>
   );
