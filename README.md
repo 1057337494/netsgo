@@ -4,8 +4,12 @@
 
 <h1 align="center">NetsGo</h1>
 <p align="center">
-  <strong>内网穿透与节点管理平台</strong><br/>
-  内置 Web 控制台 · 单端口接入 · 单文件部署
+  <strong>Intranet tunneling and node management platform</strong><br/>
+  Built-in Web console · Single-port access · Single-file deployment
+</p>
+
+<p align="center">
+  <strong>English</strong> | <a href="README.zh-CN.md">简体中文</a>
 </p>
 
 <p align="center">
@@ -24,91 +28,91 @@
 
 ---
 
-**NetsGo** 是一个开箱即用的内网穿透与节点管理平台。它将 Web 控制台、REST API、客户端接入和底层网络隧道整合进一个单文件二进制中，让部署更简单、接入更统一、运维更省心。你可以用它远程访问内网服务，也可以统一管理分散在各处的远程节点。
+**NetsGo** is an out-of-the-box intranet tunneling and node management platform. It combines the Web console, REST API, client access, and low-level network tunnels into a single-file binary, making deployment simpler, access more unified, and operations easier. You can use it to remotely access services inside private networks, or to centrally manage remote nodes distributed across different locations.
 
 ---
 
-## 目录
+## Contents
 
-- [界面预览](#界面预览)
-- [快速开始](#快速开始)
-- [为什么用 NetsGo](#为什么用-netsgo)
-- [和常见方案的区别](#和常见方案的区别)
+- [Preview](#preview)
+- [Quick Start](#quick-start)
+- [Why NetsGo](#why-netsgo)
+- [How It Differs From Common Alternatives](#how-it-differs-from-common-alternatives)
 - [License](#license)
 
 ---
 
-## 界面预览
+## Preview
 
 <p align="center">
-  <img src=".github/assets/dashboard.webp" alt="NetsGo Web 控制台总览" width="92%" />
+  <img src=".github/assets/dashboard.webp" alt="NetsGo Web console overview" width="92%" />
   <br/>
-  <sub><strong>Web 控制台总览</strong></sub>
+  <sub><strong>Web console overview</strong></sub>
 </p>
 
 ---
 
-## 快速开始
+## Quick Start
 
-更多文档和使用说明见官网：[https://netsgo.zs.uy](https://netsgo.zs.uy)。
+For more documentation and usage guides, visit the official website: [https://netsgo.zs.uy](https://netsgo.zs.uy).
 
-### 一键安装
+### One-line install
 
 ```bash
 curl -fsSL https://netsgo.zs.uy/install.sh | sh -s -- --channel beta
 ```
 
-### 一键更新
+### One-line upgrade
 
 ```bash
 curl -fsSL https://netsgo.zs.uy/upgrade.sh | sh -s -- --channel beta -y -f
 ```
 
-安装完成后，按交互提示初始化 Server 或 Client。Client 在线后，即可在 Web 面板里创建和管理 tunnel。
+After installation, follow the interactive prompts to initialize a Server or Client. Once the Client is online, you can create and manage tunnels in the Web console.
 
 ---
 
-## 为什么用 NetsGo
+## Why NetsGo
 
-如果你只是想尽快把服务端跑起来、把内网机器连上来、然后开始建隧道，NetsGo 的设计重点就是这几件事：
+If you want to start the server quickly, connect private-network machines, and then create tunnels, NetsGo focuses on exactly that:
 
-- **一个二进制就能跑**：`./netsgo server` 启服务端，`./netsgo client` 连远程节点。
-- **一个端口就够**：Web 控制台、控制通道和数据通道共用同一个入口，防火墙和反向代理只配一处就够。（TCP/UDP 隧道按需使用额外端口。）
-- **默认就带控制台**：连上客户端后，直接在 Web 面板里管理节点、查看状态、配置隧道。
+- **One binary is enough**: run `./netsgo server` to start the server, and `./netsgo client` to connect a remote node.
+- **One port is enough**: the Web console, control channel, and data channel share the same entry point, so firewalls and reverse proxies only need one shared access path. TCP/UDP tunnels use additional ports only when needed.
+- **A console is included by default**: after a client connects, manage nodes, inspect status, and configure tunnels directly in the Web console.
 
-## 和常见方案的区别
+## How It Differs From Common Alternatives
 
-这张表只做能力清单，不做高低评价。单元格尽量用短词：
+This table is a capability checklist, not a ranking. Cells intentionally use short labels:
 
-- `内置`：产品自己带
-- `平台`：由托管平台提供
-- `插件`：常见做法可通过插件/面板实现
-- `配置`：主要通过配置文件或命令完成
-- `外接`：通常要接第三方监控、日志或运维系统
+- `Built-in`: included in the product itself
+- `Platform`: provided by a hosted platform
+- `Plugin`: commonly implemented through a plugin or panel
+- `Config`: mainly handled through config files or commands
+- `External`: typically requires third-party monitoring, logging, or operations systems
 
-| 对比项 | **NetsGo** | **frp** | **ngrok** | **cloudflared** | **rathole** |
+| Item | **NetsGo** | **frp** | **ngrok** | **cloudflared** | **rathole** |
 |---|---|---|---|---|---|
-| 产品定位 | 自建管理平台 | 自建穿透工具 | 托管平台 | Cloudflare 隧道 | 自建轻量隧道 |
-| 服务端自建 | ✅ | ✅ | ❌ | 平台 | ✅ |
-| Web 界面 | 内置 | 内置/插件 | 平台 | 平台 | 外接 |
-| API / 自动化 | 内置 REST | 支持/插件 | 平台 | 平台 | 配置 |
-| 客户端管理 | 内置 | 配置/插件 | 平台 | 平台 | 配置 |
-| 隧道增删改 | Web/API | 配置/插件 | 平台 | 平台 | 配置 |
-| Web/API/客户端共用入口 | ✅ | 多入口 | 平台 | 平台 | 配置 |
-| HTTP 隧道 | ✅ | ✅ | ✅ | ✅ | TCP 承载 |
-| TCP 隧道 | ✅ | ✅ | ✅ | ✅ | ✅ |
-| UDP 隧道 | ✅ | ✅ | 视套餐/场景 | 视场景 | ✅ |
-| 登录/密钥 | 管理员 + Key | Token/OIDC | 账号/Token | 账号/策略 | Token |
-| 在线状态 | 内置 | 内置/插件 | 平台 | 平台 | 日志/外接 |
-| 流量统计 | 内置 | 内置/插件 | 平台 | 平台 | 外接 |
-| 断线重连 | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 限速 | 内置 | 内置 | 平台/套餐 | 平台策略 | 外接 |
+| Product focus | Self-hosted management platform | Self-hosted tunneling tool | Hosted platform | Cloudflare tunnel | Self-hosted lightweight tunnel |
+| Self-hosted server | ✅ | ✅ | ❌ | Platform | ✅ |
+| Web UI | Built-in | Built-in/plugin | Platform | Platform | External |
+| API / automation | Built-in REST | Supported/plugin | Platform | Platform | Config |
+| Client management | Built-in | Config/plugin | Platform | Platform | Config |
+| Tunnel CRUD | Web/API | Config/plugin | Platform | Platform | Config |
+| Shared Web/API/client entry | ✅ | Multiple entries | Platform | Platform | Config |
+| HTTP tunnel | ✅ | ✅ | ✅ | ✅ | TCP-backed |
+| TCP tunnel | ✅ | ✅ | ✅ | ✅ | ✅ |
+| UDP tunnel | ✅ | ✅ | Plan/scenario-dependent | Scenario-dependent | ✅ |
+| Login / key | Admin + Key | Token/OIDC | Account/Token | Account/policy | Token |
+| Online status | Built-in | Built-in/plugin | Platform | Platform | Logs/external |
+| Traffic statistics | Built-in | Built-in/plugin | Platform | Platform | External |
+| Reconnect after disconnect | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Rate limiting | Built-in | Built-in | Platform/plan | Platform policy | External |
 
-### 适用建议
+### Usage Guidance
 
-- **NetsGo**：适合想把“客户端、隧道、状态、流量”放在一个自建 Web 面板里管理的场景。
-- **frp / rathole**：适合偏配置驱动、轻量部署、自己组合运维工具的场景。
-- **ngrok / cloudflared**：适合偏托管平台、希望直接使用平台账号和边缘网络能力的场景。
+- **NetsGo**: for scenarios where you want to manage clients, tunnels, status, and traffic in one self-hosted Web console.
+- **frp / rathole**: for configuration-driven, lightweight deployments where you compose your own operations tooling.
+- **ngrok / cloudflared**: for hosted-platform scenarios where you want to use platform accounts and edge network capabilities directly.
 
 ## License
 
