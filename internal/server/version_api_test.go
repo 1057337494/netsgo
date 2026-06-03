@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -89,7 +88,8 @@ func TestVersionCheckCommandsOnlyForService(t *testing.T) {
 	})
 
 	result := s.computeVersionCheck(false, "server", "server", "v0.1.0", updater.InstallMethodService)
-	if result.Commands == nil || !strings.Contains(result.Commands.Domestic, "--source cnb --channel stable -y") {
+	wantCommand := "curl -fsSL https://netsgo.zs.uy/upgrade.sh | sh -s -- -y"
+	if result.Commands == nil || result.Commands.Command != wantCommand {
 		t.Fatalf("expected service upgrade commands, got %+v", result.Commands)
 	}
 

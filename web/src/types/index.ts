@@ -21,8 +21,7 @@ export interface UpdateCapability {
 
 export type VersionInstallMethod = "service" | "docker" | "binary";
 export interface VersionCheckCommands {
-  domestic: string;
-  global: string;
+  command: string;
 }
 
 export type VersionTargetKind = "server" | "client";

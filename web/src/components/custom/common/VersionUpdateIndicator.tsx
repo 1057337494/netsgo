@@ -68,22 +68,14 @@ export function VersionUpdateContent({
       {isService && data.commands ? (
         <div className="grid gap-3 text-sm">
           <p className="text-muted-foreground">{targetInstruction(target.kind, t)}</p>
-          {[
-            [t('updates.domesticSource'), data.commands.domestic],
-            [t('updates.globalSource'), data.commands.global],
-          ].map(([name, command]) => (
-            <div key={name} className="grid gap-1.5">
-              <div className="text-xs text-muted-foreground">{name}</div>
-              <div className="flex items-start gap-2 rounded-md bg-muted p-2">
-                <code className="min-w-0 flex-1 break-all text-xs text-foreground">{command}</code>
-                <CopyButton
-                  value={command}
-                  title={t('updates.copyUpgradeCommand', { name })}
-                  className="inline-flex size-6 items-center justify-center rounded-[min(var(--radius-md),10px)] transition-colors hover:bg-background/70"
-                />
-              </div>
-            </div>
-          ))}
+          <div className="flex items-start gap-2 rounded-md bg-muted p-2">
+            <code className="min-w-0 flex-1 break-all text-xs text-foreground">{data.commands.command}</code>
+            <CopyButton
+              value={data.commands.command}
+              title={t('updates.copyUpgradeCommand')}
+              className="inline-flex size-6 items-center justify-center rounded-[min(var(--radius-md),10px)] transition-colors hover:bg-background/70"
+            />
+          </div>
         </div>
       ) : isDocker ? (
         <p className="text-sm text-muted-foreground">{t('updates.dockerManual')}</p>

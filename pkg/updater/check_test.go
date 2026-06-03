@@ -16,10 +16,11 @@ func TestComputeCheckResultStableUsesStableOnly(t *testing.T) {
 	if got.RecommendedAction != RecommendedActionRunScript || got.Commands == nil {
 		t.Fatalf("expected service script command, got %+v", got)
 	}
-	if want := "--source cnb --channel stable -y"; !strings.Contains(got.Commands.Domestic, want) {
-		t.Fatalf("domestic command %q missing %q", got.Commands.Domestic, want)
+	wantCommand := "curl -fsSL https://netsgo.zs.uy/upgrade.sh | sh -s -- -y"
+	if got.Commands.Command != wantCommand {
+		t.Fatalf("upgrade commands should use the unified script command, got %+v", got.Commands)
 	}
-	if commandArgsContainForce(got.Commands.Domestic) || commandArgsContainForce(got.Commands.Global) {
+	if commandArgsContainForce(got.Commands.Command) {
 		t.Fatalf("web upgrade command must not include force flag: %+v", got.Commands)
 	}
 }

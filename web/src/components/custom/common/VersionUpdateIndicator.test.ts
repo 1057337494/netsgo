@@ -60,7 +60,7 @@ describe('VersionUpdateIndicator', () => {
     expect(manualVersionCheckToast(result({ update_available: true }))).toBeNull();
   });
 
-  test('service update renders both trusted upgrade commands', () => {
+  test('service update renders the unified upgrade command', () => {
     const target: VersionCheckTarget = {
       kind: 'server',
       version: 'v0.1.0',
@@ -72,16 +72,16 @@ describe('VersionUpdateIndicator', () => {
       update_available: true,
       recommended_action: 'run_script',
       commands: {
-        domestic: 'curl -fsSL https://netsgo.zs.uy/upgrade.sh | sh -s -- --source cnb --channel stable -y',
-        global: 'curl -fsSL https://raw.githubusercontent.com/zsio/netsgo/main/scripts/upgrade.sh | sh -s -- --source github --channel stable -y',
+        command: 'curl -fsSL https://netsgo.zs.uy/upgrade.sh | sh -s -- -y',
       },
       }),
     }));
 
     expect(markup).toContain('Run the following command on the Server machine to upgrade');
-    expect(markup).toContain('scripts/upgrade.sh');
-    expect(markup).toContain('--source cnb --channel stable -y');
-    expect(markup).toContain('--source github --channel stable -y');
+    expect(markup).toContain('curl -fsSL https://netsgo.zs.uy/upgrade.sh | sh -s -- -y');
+    expect(markup).not.toContain('China mirror');
+    expect(markup).not.toContain('Global source');
+    expect(markup).not.toContain('--source');
   });
 
   test('binary update does not render script commands', () => {

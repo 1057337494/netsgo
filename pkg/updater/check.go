@@ -1,7 +1,6 @@
 package updater
 
 import (
-	"fmt"
 	"time"
 
 	buildversion "netsgo/pkg/version"
@@ -25,8 +24,7 @@ const (
 )
 
 type Commands struct {
-	Domestic string `json:"domestic"`
-	Global   string `json:"global"`
+	Command string `json:"command"`
 }
 
 type CheckResult struct {
@@ -98,10 +96,9 @@ func ComputeCheckResult(idx *ReleaseIndex, currentVersion, installMethod, cacheS
 	return result
 }
 
-func BuildUpgradeCommands(channel string) *Commands {
+func BuildUpgradeCommands(_ string) *Commands {
 	return &Commands{
-		Domestic: fmt.Sprintf("curl -fsSL https://netsgo.zs.uy/upgrade.sh | sh -s -- --source cnb --channel %s -y", channel),
-		Global:   fmt.Sprintf("curl -fsSL https://raw.githubusercontent.com/zsio/netsgo/main/scripts/upgrade.sh | sh -s -- --source github --channel %s -y", channel),
+		Command: "curl -fsSL https://netsgo.zs.uy/upgrade.sh | sh -s -- -y",
 	}
 }
 
