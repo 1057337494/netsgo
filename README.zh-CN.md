@@ -59,13 +59,13 @@
 ### 一键安装
 
 ```bash
-curl -fsSL https://netsgo.zs.uy/install.sh | sh -s -- --channel beta
+curl -fsSL https://netsgo.zs.uy/install.sh | sh
 ```
 
 ### 一键更新
 
 ```bash
-curl -fsSL https://netsgo.zs.uy/upgrade.sh | sh -s -- --channel beta -y -f
+curl -fsSL https://netsgo.zs.uy/upgrade.sh | sh -s -- -y
 ```
 
 安装完成后，按交互提示初始化 Server 或 Client。Client 在线后，即可在 Web 面板里创建和管理 tunnel。

@@ -59,13 +59,13 @@ For more documentation and usage guides, visit the official website: [https://ne
 ### One-line install
 
 ```bash
-curl -fsSL https://netsgo.zs.uy/install.sh | sh -s -- --channel beta
+curl -fsSL https://netsgo.zs.uy/install.sh | sh
 ```
 
 ### One-line upgrade
 
 ```bash
-curl -fsSL https://netsgo.zs.uy/upgrade.sh | sh -s -- --channel beta -y -f
+curl -fsSL https://netsgo.zs.uy/upgrade.sh | sh -s -- -y
 ```
 
 After installation, follow the interactive prompts to initialize a Server or Client. Once the Client is online, you can create and manage tunnels in the Web console.
