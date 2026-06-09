@@ -256,8 +256,8 @@ function AdminSecurityPage() {
 
   return (
     <div className="pb-10">
-      <Tabs value={securitySection} onValueChange={setSecuritySection} className="flex flex-col gap-5">
-        <TabsList className="grid h-10 w-full grid-cols-3 rounded-lg bg-muted/40 p-1 sm:w-fit">
+      <Tabs value={securitySection} onValueChange={setSecuritySection}>
+        <TabsList>
           <SecuritySectionTrigger value="account" icon={UserRound} title={t('admin.accountPasswordTab')} />
           <SecuritySectionTrigger value="totp" icon={ShieldCheck} title={t('admin.twoFactorAuth')} />
           <SecuritySectionTrigger value="passkey" icon={Fingerprint} title={t('admin.passkeys')} />
@@ -372,13 +372,7 @@ function SecuritySectionTrigger({ value, icon: Icon, title, description }: {
   description?: string;
 }) {
   return (
-    <TabsTrigger
-      value={value}
-      className={cn(
-        'h-8 min-w-0 gap-2 px-3 text-sm font-semibold',
-        'data-active:text-primary data-active:shadow-sm',
-      )}
-    >
+    <TabsTrigger value={value}>
       <Icon data-icon="inline-start" />
       <span className="truncate">{title}</span>
       {description ? <span className="sr-only">{description}</span> : null}
