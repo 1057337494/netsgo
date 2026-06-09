@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { createRoute, useNavigate } from '@tanstack/react-router';
 import {
-  CalendarClock,
   Check,
   CheckCircle2,
   Fingerprint,
@@ -80,6 +79,7 @@ function AdminSecurityPage() {
   const [deleteForm, setDeleteForm] = useState(emptyCredentialForm);
   const [securitySection, setSecuritySection] = useState('account');
   const [accountDialog, setAccountDialog] = useState<'username' | 'password' | null>(null);
+  const [totpAction, setTotpAction] = useState<'enable' | 'regenerate' | 'disable' | null>(null);
   const [passkeyAddOpen, setPasskeyAddOpen] = useState(false);
 
   const passkeySupported = useMemo(() => isPasskeySupported(), []);
@@ -141,6 +141,7 @@ function AdminSecurityPage() {
         mfa_code: totpForm.mfaCode || undefined,
       });
       setTotpSetup(setup);
+      setTotpAction(null);
     } catch (error) {
       showSecurityError(error);
     }
@@ -167,7 +168,11 @@ function AdminSecurityPage() {
         current_password: totpForm.currentPassword,
         mfa_code: totpForm.mfaCode || undefined,
       });
-      if (resp.requires_relogin) forceRelogin(t('admin.securityReloginRequired'));
+      if (resp.requires_relogin) {
+        forceRelogin(t('admin.securityReloginRequired'));
+        return;
+      }
+      setTotpAction(null);
     } catch (error) {
       showSecurityError(error);
     }
@@ -180,6 +185,7 @@ function AdminSecurityPage() {
         mfa_code: totpForm.mfaCode || undefined,
       });
       setRecoveryCodes(resp.recovery_codes);
+      setTotpAction(null);
     } catch (error) {
       showSecurityError(error);
     }
@@ -281,22 +287,24 @@ function AdminSecurityPage() {
           <TOTPSection
             enabled={data.totp_enabled}
             recoveryCodesRemaining={data.recovery_codes_remaining}
-            form={totpForm}
-            requiresMFA={requiresMFA}
-            isBeginning={mutations.beginTOTP.isPending}
-            isRegenerating={mutations.regenerateRecoveryCodes.isPending}
-            isDisabling={mutations.disableTOTP.isPending}
-            onFormChange={(patch) => setTotpForm({ ...totpForm, ...patch })}
-            onBegin={beginTOTP}
-            onRegenerate={regenerateRecoveryCodes}
-            onDisable={disableTOTP}
+            onEnableRequest={() => {
+              setTotpForm(emptyCredentialForm);
+              setTotpAction('enable');
+            }}
+            onRegenerateRequest={() => {
+              setTotpForm(emptyCredentialForm);
+              setTotpAction('regenerate');
+            }}
+            onDisableRequest={() => {
+              setTotpForm(emptyCredentialForm);
+              setTotpAction('disable');
+            }}
           />
         </TabsContent>
 
         <TabsContent value="passkey" className="mt-0">
           <PasskeySection
             passkeys={data.passkeys}
-            webauthn={data.webauthn}
             passkeySupported={passkeySupported}
             onAddRequest={() => {
               setPasskeyForm({ ...emptyCredentialForm, name: '' });
@@ -331,6 +339,23 @@ function AdminSecurityPage() {
         onChange={(patch) => setPasswordForm({ ...passwordForm, ...patch })}
         onClose={() => setAccountDialog(null)}
         onSubmit={handlePasswordSubmit}
+      />
+      <TOTPActionDialog
+        action={totpAction}
+        form={totpForm}
+        requiresMFA={requiresMFA}
+        isPending={
+          totpAction === 'enable'
+            ? mutations.beginTOTP.isPending
+            : totpAction === 'regenerate'
+              ? mutations.regenerateRecoveryCodes.isPending
+              : mutations.disableTOTP.isPending
+        }
+        onChange={(patch) => setTotpForm({ ...totpForm, ...patch })}
+        onClose={() => setTotpAction(null)}
+        onBegin={beginTOTP}
+        onRegenerate={regenerateRecoveryCodes}
+        onDisable={disableTOTP}
       />
       <TOTPSetupDialog setup={totpSetup} code={totpCode} onCodeChange={setTotpCode} onCancel={() => setTotpSetup(null)} onConfirm={confirmTOTP} />
       <RecoveryCodesDialog codes={recoveryCodes} onClose={() => {
@@ -385,7 +410,7 @@ function AccountPasswordSection({
   onEditUsername,
   onEditPassword,
 }: {
-  currentUser: { username: string; role: string; created_at: string };
+  currentUser: { username: string; role: string };
   onEditUsername: () => void;
   onEditPassword: () => void;
 }) {
@@ -398,25 +423,10 @@ function AccountPasswordSection({
       description={t('admin.accountPasswordDescription')}
       badge={<Badge variant="secondary">{currentUser.role}</Badge>}
     >
-      <div className="rounded-lg border border-border/50 bg-muted/15 p-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t('admin.currentAdmin')}
-            </p>
-            <p className="mt-1 truncate text-lg font-semibold">{currentUser.username}</p>
-          </div>
-          <div className="text-right text-xs text-muted-foreground">
-            <p>{t('admin.accountCreated')}</p>
-            <p className="font-medium text-foreground">{formatDate(currentUser.created_at)}</p>
-          </div>
-        </div>
-      </div>
-
       <div className="overflow-hidden rounded-lg border border-border/50 bg-background/70">
         <SettingRow
           icon={UserRound}
-          title={t('admin.updateUsername')}
+          title={t('admin.currentAdmin')}
           description={t('admin.accountProfileDescription')}
           value={currentUser.username}
           actionLabel={t('admin.updateUsername')}
@@ -439,27 +449,15 @@ function AccountPasswordSection({
 function TOTPSection({
   enabled,
   recoveryCodesRemaining,
-  form,
-  requiresMFA,
-  isBeginning,
-  isRegenerating,
-  isDisabling,
-  onFormChange,
-  onBegin,
-  onRegenerate,
-  onDisable,
+  onEnableRequest,
+  onRegenerateRequest,
+  onDisableRequest,
 }: {
   enabled: boolean;
   recoveryCodesRemaining: number;
-  form: CredentialForm;
-  requiresMFA: boolean;
-  isBeginning: boolean;
-  isRegenerating: boolean;
-  isDisabling: boolean;
-  onFormChange: (patch: Partial<CredentialForm>) => void;
-  onBegin: (event: React.FormEvent) => void;
-  onRegenerate: () => void;
-  onDisable: () => void;
+  onEnableRequest: () => void;
+  onRegenerateRequest: () => void;
+  onDisableRequest: () => void;
 }) {
   const { t } = useTranslation();
 
@@ -484,56 +482,45 @@ function TOTPSection({
         }
       />
 
-      <form onSubmit={onBegin} className="flex max-w-2xl flex-col gap-4">
-        <CredentialBlock
-          requiresMFA={requiresMFA}
-          form={form}
-          onChange={onFormChange}
-        />
-        {!enabled ? (
-          <div className="flex justify-end">
-            <Button type="submit" disabled={isBeginning}>
-              <Plus data-icon="inline-start" />
-              {t('admin.enableTOTP')}
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onRegenerate}
-              disabled={isRegenerating}
-            >
-              <RotateCcw data-icon="inline-start" />
-              {t('admin.regenerateRecoveryCodes')}
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={onDisable}
-              disabled={isDisabling}
-            >
-              <X data-icon="inline-start" />
-              {t('admin.disableTOTP')}
-            </Button>
-          </div>
-        )}
-      </form>
+      {!enabled ? (
+        <div className="flex justify-end">
+          <Button type="button" onClick={onEnableRequest}>
+            <Plus data-icon="inline-start" />
+            {t('admin.enableTOTP')}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onRegenerateRequest}
+          >
+            <RotateCcw data-icon="inline-start" />
+            {t('admin.regenerateRecoveryCodes')}
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={onDisableRequest}
+          >
+            <X data-icon="inline-start" />
+            {t('admin.disableTOTP')}
+          </Button>
+        </div>
+      )}
     </SecurityPanel>
   );
 }
 
 function PasskeySection({
   passkeys,
-  webauthn,
   passkeySupported,
   onAddRequest,
   onRename,
   onDelete,
 }: {
   passkeys: PasskeySummary[];
-  webauthn: { origin: string; rp_id: string };
   passkeySupported: boolean;
   onAddRequest: () => void;
   onRename: (passkey: PasskeySummary) => void;
@@ -548,21 +535,15 @@ function PasskeySection({
       description={t('admin.passkeyPanelDescription')}
       badge={<Badge variant="secondary">{passkeys.length}</Badge>}
     >
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <div className="grid gap-3 rounded-lg border border-border/50 bg-muted/15 p-4 text-sm">
-          <MetaLine label={t('admin.webauthnOrigin')} value={webauthn.origin || t('common.unknown')} />
-          <MetaLine label={t('admin.webauthnRpId')} value={webauthn.rp_id || t('common.unknown')} />
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {passkeySupported ? <CheckCircle2 className="text-primary" /> : <ShieldOff />}
-            <span>{passkeySupported ? t('admin.browserReady') : t('admin.browserUnavailable')}</span>
-          </div>
-        </div>
+      {!passkeySupported ? (
+        <FactorStatusRow enabled={false} title={t('admin.passkeyUnavailableTitle')} description={t('admin.passkeyUnsupported')} />
+      ) : null}
 
-        <div className="rounded-lg border border-border/50 bg-background/70 p-4">
+      <div className="overflow-hidden rounded-lg border border-border/50 bg-background/70">
+        <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
           <SectionTaskHeader icon={Plus} title={t('admin.addPasskey')} description={t('admin.passkeyAddDescription')} />
           <Button
             type="button"
-            className="mt-4 w-full"
             disabled={!passkeySupported}
             onClick={onAddRequest}
           >
@@ -887,7 +868,7 @@ function PasskeyAddDialog({
             <DialogDescription>{t('admin.passkeyAddDescription')}</DialogDescription>
           </DialogHeader>
           {!passkeySupported ? (
-            <FactorStatusRow enabled={false} title={t('admin.browserUnavailable')} description={t('admin.passkeyUnsupported')} />
+            <FactorStatusRow enabled={false} title={t('admin.passkeyUnavailableTitle')} description={t('admin.passkeyUnsupported')} />
           ) : null}
           <LabeledInput
             id="admin-passkey-name"
@@ -914,12 +895,75 @@ function PasskeyAddDialog({
   );
 }
 
-function MetaLine({ label, value }: { label: string; value: string }) {
+function TOTPActionDialog({
+  action,
+  form,
+  requiresMFA,
+  isPending,
+  onChange,
+  onClose,
+  onBegin,
+  onRegenerate,
+  onDisable,
+}: {
+  action: 'enable' | 'regenerate' | 'disable' | null;
+  form: CredentialForm;
+  requiresMFA: boolean;
+  isPending: boolean;
+  onChange: (patch: Partial<CredentialForm>) => void;
+  onClose: () => void;
+  onBegin: (event: React.FormEvent) => void;
+  onRegenerate: () => void;
+  onDisable: () => void;
+}) {
+  const { t } = useTranslation();
+
+  const title = action === 'enable'
+    ? t('admin.enableTOTP')
+    : action === 'regenerate'
+      ? t('admin.regenerateRecoveryCodes')
+      : t('admin.disableTOTP');
+  const description = action === 'enable'
+    ? t('admin.totpEnableActionDescription')
+    : action === 'regenerate'
+      ? t('admin.recoveryCodesRegenerateDescription')
+      : t('admin.totpDisableActionDescription');
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (action === 'enable') {
+      void onBegin(event);
+    } else if (action === 'regenerate') {
+      onRegenerate();
+    } else if (action === 'disable') {
+      onDisable();
+    }
+  };
+
   return (
-    <div className="flex min-w-0 items-center justify-between gap-3">
-      <span className="shrink-0 text-muted-foreground">{label}</span>
-      <span className="min-w-0 truncate font-medium" title={value}>{value}</span>
-    </div>
+    <Dialog open={!!action} onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
+      <DialogContent>
+        <form onSubmit={submit} className="flex flex-col gap-4">
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
+          </DialogHeader>
+          <CredentialBlock
+            compact
+            requiresMFA={requiresMFA}
+            form={form}
+            onChange={onChange}
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
+            <Button type="submit" variant={action === 'disable' ? 'destructive' : 'default'} disabled={isPending}>
+              {action === 'regenerate' ? <RotateCcw data-icon="inline-start" /> : action === 'disable' ? <X data-icon="inline-start" /> : <Plus data-icon="inline-start" />}
+              {title}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -950,7 +994,7 @@ function PasskeyList({ passkeys, onRename, onDelete }: {
                 <Fingerprint className="shrink-0 text-primary" />
                 <p className="truncate font-medium">{passkey.name}</p>
               </div>
-              <p className="mt-1 truncate text-xs text-muted-foreground" title={passkey.origin}>{passkey.origin}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t('admin.passkeyCredentialDescription')}</p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <Button type="button" variant="ghost" size="icon-sm" onClick={() => onRename(passkey)} title={t('common.edit')} aria-label={t('common.edit')}>
@@ -959,17 +1003,6 @@ function PasskeyList({ passkeys, onRename, onDelete }: {
               <Button type="button" variant="ghost" size="icon-sm" onClick={() => onDelete(passkey)} title={t('common.delete')} aria-label={t('common.delete')}>
                 <Trash2 />
               </Button>
-            </div>
-          </div>
-          <Separator className="my-3" />
-          <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-            <div className="flex items-center gap-1.5">
-              <CalendarClock />
-              <span>{t('admin.passkeyCreated')}: {formatDate(passkey.created_at)}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 />
-              <span>{t('admin.passkeyLastUsed')}: {passkey.last_used_at ? formatDate(passkey.last_used_at) : t('admin.passkeyNeverUsed')}</span>
             </div>
           </div>
         </div>
@@ -1055,7 +1088,7 @@ function PasskeyNameDialog({ passkey, form, requiresMFA, onChange, onClose, onSu
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('admin.renamePasskey')}</DialogTitle>
-          <DialogDescription>{passkey?.origin}</DialogDescription>
+          <DialogDescription>{t('admin.passkeyRenameDescription')}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <LabeledInput id="admin-rename-passkey" label={t('admin.passkeyName')} value={form.name} onChange={(value) => onChange({ name: value })} />
@@ -1097,17 +1130,4 @@ function PasskeyDeleteDialog({ passkey, form, requiresMFA, onChange, onClose, on
       </DialogContent>
     </Dialog>
   );
-}
-
-function formatDate(value?: string) {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
 }
