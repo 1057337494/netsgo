@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
 
-import { ClientToClientTopologyButton } from './TunnelDialog';
+import { ClientToClientTopologyButton, getInitialTunnelFormState } from './TunnelDialog';
 
 const legacyInlineWarning = ['客户端互访', '需要', '至少', '两个客户端'].join('');
 function renderClientToClientButton(disabled: boolean) {
@@ -40,5 +40,46 @@ describe('ClientToClientTopologyButton', () => {
     expect(markup).toContain('客户端互访');
     expect(markup).not.toContain('disabled=""');
     expect(markup).not.toContain('cursor-not-allowed');
+  });
+});
+
+describe('getInitialTunnelFormState', () => {
+  test('创建隧道时入口监听地址默认使用通配地址', () => {
+    const form = getInitialTunnelFormState({
+      mode: 'create',
+      clientId: 'client-1',
+      clients: [
+        {
+          id: 'client-1',
+          ingress_bps: 0,
+          egress_bps: 0,
+          info: {
+            hostname: 'source',
+            os: 'linux',
+            arch: 'amd64',
+            ip: '10.0.0.1',
+            version: 'dev',
+          },
+          stats: null,
+          online: true,
+        },
+        {
+          id: 'client-2',
+          ingress_bps: 0,
+          egress_bps: 0,
+          info: {
+            hostname: 'ingress',
+            os: 'linux',
+            arch: 'amd64',
+            ip: '10.0.0.2',
+            version: 'dev',
+          },
+          stats: null,
+          online: true,
+        },
+      ],
+    });
+
+    expect(form.bindIp).toBe('0.0.0.0');
   });
 });

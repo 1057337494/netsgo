@@ -202,7 +202,7 @@ describe('TunnelListTable', () => {
     expect(markup).toContain('127.0.0.1:22');
   });
 
-  test('展示统一隧道入口、目标与 wildcard bind 警告', () => {
+  test('展示统一隧道入口与目标，不展示 wildcard bind 警告', () => {
     const markup = renderTable([
       createTunnel({
         topology: 'client_to_client',
@@ -242,7 +242,7 @@ describe('TunnelListTable', () => {
     expect(markup).toContain('127.0.0.1:22');
     expect(markup).not.toContain('P2P preferred (not open) · Server relay');
     expect(markup).not.toContain('Fell back to relay');
-    expect(markup).toContain('Ingress binds to a wildcard address and is exposed to the ingress client network.');
+    expect(markup).not.toContain('Ingress binds to a wildcard address and is exposed to the ingress client network.');
   });
 
   test('归属节点可按回调渲染为可点击按钮', () => {

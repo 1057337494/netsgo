@@ -250,7 +250,7 @@ export function TunnelListTable({
               <table className="min-w-[56rem] w-full table-fixed text-left text-sm">
                 <thead className="text-xs text-muted-foreground bg-muted/30 uppercase">
                   <tr>
-                    <th className="w-40 whitespace-nowrap px-4 py-3 font-medium sm:px-6">{t('tunnels.tunnel')}</th>
+                    <th className="w-[150px] whitespace-nowrap px-4 py-3 font-medium sm:px-6">{t('tunnels.tunnel')}</th>
                     <th className="w-56 whitespace-nowrap px-4 py-3 font-medium sm:px-6">{t('tunnels.ingress')}</th>
                     <th className="w-64 whitespace-nowrap px-4 py-3 font-medium sm:px-6">{t('tunnels.targetService')}</th>
                     <th className="w-24 whitespace-nowrap px-4 py-3 font-medium sm:px-6">{t('tunnels.bandwidthLimit')}</th>
@@ -361,16 +361,16 @@ function TunnelTableRow({
   return (
     <tr className="hover:bg-muted/30 transition-colors">
       <td className="px-4 py-3 sm:px-6">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="inline-flex shrink-0 items-center rounded border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="block min-w-0 truncate font-medium text-foreground" title={tunnel.name}>{tunnel.name}</span>
+          <span className="inline-flex w-fit max-w-full items-center rounded border border-border/50 bg-muted/30 px-1 py-0 text-[9px] leading-3 font-medium text-muted-foreground">
             {getTunnelTypeLabel(tunnel)}
           </span>
-          <span className="block min-w-0 truncate font-medium text-foreground" title={tunnel.name}>{tunnel.name}</span>
         </div>
       </td>
 
       <td className="px-4 py-3 sm:px-6">
-        <TunnelEndpointCell endpoint={ingress} warning={view.ingressWarning} />
+        <TunnelEndpointCell endpoint={ingress} />
       </td>
 
       <td className="px-4 py-3 sm:px-6">
@@ -508,11 +508,9 @@ function TunnelSpeedLimit({ tunnel }: { tunnel: TunnelEntry }) {
 
 function TunnelEndpointCell({
   endpoint,
-  warning,
   onNodeClick,
 }: {
   endpoint: TunnelEndpointPresentation;
-  warning?: string;
   onNodeClick?: () => void;
 }) {
   return (
@@ -534,11 +532,6 @@ function TunnelEndpointCell({
       <span className="block truncate font-mono text-xs text-primary" title={endpoint.addressLabel}>
         {endpoint.addressLabel}
       </span>
-      {warning && (
-        <span className="truncate text-[11px] text-amber-600" title={warning}>
-          {warning}
-        </span>
-      )}
     </div>
   );
 }

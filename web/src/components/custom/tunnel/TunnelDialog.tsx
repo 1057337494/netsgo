@@ -106,7 +106,7 @@ function FieldErrorText({
   );
 }
 
-function getInitialFormState(props: TunnelDialogProps): TunnelFormState {
+export function getInitialTunnelFormState(props: TunnelDialogProps): TunnelFormState {
   if (props.mode === 'edit' && props.tunnel) {
     return {
       name: props.tunnel.name,
@@ -115,7 +115,7 @@ function getInitialFormState(props: TunnelDialogProps): TunnelFormState {
       ingressClientId: props.tunnel.ingress?.client_id ?? '',
       bindIp: props.tunnel.ingress?.type === 'tcp_listen' || props.tunnel.ingress?.type === 'udp_listen'
         ? props.tunnel.ingress.config.bind_ip
-        : '127.0.0.1',
+        : '0.0.0.0',
       type: props.tunnel.type,
       localIp: getInitialTargetHost(props.tunnel),
       localPort: String(getInitialTargetPort(props.tunnel) || ''),
@@ -131,7 +131,7 @@ function getInitialFormState(props: TunnelDialogProps): TunnelFormState {
     topology: 'server_expose',
     targetClientId: props.mode === 'create' ? props.clientId : '',
     ingressClientId: '',
-    bindIp: '127.0.0.1',
+    bindIp: '0.0.0.0',
     type: 'tcp',
     localIp: '127.0.0.1',
     localPort: '',
@@ -293,7 +293,7 @@ function TunnelDialogForm({
 }) {
   const { t } = useTranslation();
   const isEdit = props.mode === 'edit';
-  const initialForm = getInitialFormState(props);
+  const initialForm = getInitialTunnelFormState(props);
   const [name, setName] = useState(initialForm.name);
   const [topology, setTopology] = useState<TunnelTopology>(initialForm.topology);
   const [targetClientId, setTargetClientId] = useState(initialForm.targetClientId);
@@ -660,7 +660,7 @@ function TunnelDialogForm({
                 <label className="text-sm font-medium">{t('tunnels.bindAddress')}</label>
                 <Input
                   aria-label={t('tunnels.bindAddress')}
-                  placeholder="127.0.0.1 / 0.0.0.0"
+                  placeholder="0.0.0.0"
                   value={bindIp}
                   onChange={(e) => {
                     clearMutationFeedback();
