@@ -1329,9 +1329,9 @@ func tunnelIngressConfig(t *StoredTunnel) map[string]any {
 	case protocol.ProxyTypeHTTP:
 		return map[string]any{"domain": t.Domain}
 	case protocol.ProxyTypeUDP:
-		return map[string]any{"bind_ip": "0.0.0.0", "port": t.RemotePort}
+		return map[string]any{"bind_ip": normalizeServerBindIP(t.BindIP), "port": t.RemotePort}
 	default:
-		return map[string]any{"bind_ip": "0.0.0.0", "port": t.RemotePort}
+		return map[string]any{"bind_ip": normalizeServerBindIP(t.BindIP), "port": t.RemotePort}
 	}
 }
 
