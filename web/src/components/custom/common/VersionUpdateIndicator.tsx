@@ -47,7 +47,7 @@ export function VersionUpdateContent({
 }) {
   const { t } = useTranslation();
   const releaseHref = safeReleaseUrl(data.release_url);
-  const upgradeCommand = data.commands ? safeUpgradeCommand(data.commands.command) : null;
+  const upgradeCommand = safeUpgradeCommand(data.commands?.command);
   const isDocker = data.install_method === 'docker';
   const isService = data.install_method === 'service';
 
