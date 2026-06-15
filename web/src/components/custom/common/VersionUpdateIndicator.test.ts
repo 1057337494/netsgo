@@ -7,7 +7,6 @@ import { versionCheckQueryKey, type VersionCheckTarget } from '@/hooks/use-versi
 import type { VersionCheckResult } from '@/types';
 
 import { VersionUpdateContent, VersionUpdateIndicator } from './VersionUpdateIndicator';
-import { CANONICAL_UPGRADE_COMMAND, safeReleaseURL, safeUpgradeCommand } from './version-update-safety';
 import { manualVersionCheckToast } from './version-update-toast';
 import {
   safeReleaseUrl,
