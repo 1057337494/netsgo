@@ -25,7 +25,7 @@ Medium
 
 ## Recommended direction
 
-SOCKS5 CONNECT 本次只扩展 CHECK 到已知类型：`socks5_listen` / `socks5_handler`。长期若要支持插件式 endpoint，应把 endpoint 组合校验集中到 Go 层，并用统一兼容矩阵覆盖所有写路径。
+SOCKS5 CONNECT 本次只扩展 CHECK 到已知类型：`socks5_listen` / `socks5_connect_handler`。长期若要支持插件式 endpoint，应把 endpoint 组合校验集中到 Go 层，并用统一兼容矩阵覆盖所有写路径。
 
 ## Why not in SOCKS5 CONNECT PR
 

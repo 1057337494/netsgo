@@ -30,7 +30,7 @@ High
 
 当前代码已经有 `TunnelProvisionRequest{Spec TunnelSpec}`。问题在于 target role 处理时又调用 `proxyRequestFromTunnelSpec` 转成 `ProxyNewRequest`。本次应移除 SOCKS5 target 对该转换的依赖：client 应保存新的 target runtime config，或直接保存经过验证的 `TunnelSpec`。
 
-SOCKS5 CONNECT 本次必须至少做到：server -> client provisioning 能完整表达 `socks5_handler` 所需的 target access policy 和 dial 配置，不能继续依赖固定 `local_ip/local_port` 作为真实语义。
+SOCKS5 CONNECT 本次必须至少做到：server -> client provisioning 能完整表达 `socks5_connect_handler` 所需的 target access policy 和 dial 配置，不能继续依赖固定 `local_ip/local_port` 作为真实语义。
 
 ## Why not in SOCKS5 CONNECT PR
 
