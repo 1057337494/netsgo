@@ -33,7 +33,13 @@ export interface EventStreamDiagnostics {
   runtimeState?: string;
   desiredState?: string;
   snapshotRequestId?: number;
+  snapshotGeneratedAt?: string;
   tunnels?: string[];
+}
+
+export interface EventStreamSnapshotState {
+  requestSeq: number;
+  appliedGeneratedAt?: number;
 }
 
 const consoleSummaryFields = [
@@ -60,7 +66,10 @@ const serverStatusNumberFields = [
   'cpu_cores',
   'mem_used',
 ] as const satisfies readonly (keyof ServerStatus)[];
-let consoleSnapshotRequestSeq = 0;
+
+export function createEventStreamSnapshotState(): EventStreamSnapshotState {
+  return { requestSeq: 0 };
+}
 
 function isRecord(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -108,7 +117,9 @@ function isConsoleSnapshot(value: unknown): value is ConsoleSnapshot {
     isRecord(value) &&
     (value.clients === undefined || (Array.isArray(value.clients) && value.clients.every(isClient))) &&
     (value.summary === undefined || isConsoleSummary(value.summary)) &&
-    (value.server_status === undefined || isServerStatus(value.server_status))
+    (value.server_status === undefined || isServerStatus(value.server_status)) &&
+    (value.generated_at === undefined || typeof value.generated_at === 'string') &&
+    (value.fresh_until === undefined || typeof value.fresh_until === 'string')
   );
 }
 
@@ -228,7 +239,34 @@ function summarizeClientTunnelStates(clients: Client[] | undefined) {
   );
 }
 
-function applyConsoleSnapshot(queryClient: EventStreamQueryClient, snapshot: ConsoleSnapshot) {
+function snapshotGeneratedAtMillis(snapshot: ConsoleSnapshot) {
+  if (!snapshot.generated_at) {
+    return undefined;
+  }
+  const generatedAt = Date.parse(snapshot.generated_at);
+  return Number.isFinite(generatedAt) ? generatedAt : undefined;
+}
+
+function snapshotDiagnostic(eventType: string, snapshot: ConsoleSnapshot, snapshotRequestId?: number): EventStreamDiagnostics {
+  return {
+    eventType,
+    clientId: snapshot.clients?.[0]?.id,
+    snapshotRequestId,
+    snapshotGeneratedAt: snapshot.generated_at,
+    tunnels: summarizeClientTunnelStates(snapshot.clients),
+  };
+}
+
+function applyConsoleSnapshot(queryClient: EventStreamQueryClient, snapshotState: EventStreamSnapshotState, snapshot: ConsoleSnapshot) {
+  const generatedAt = snapshotGeneratedAtMillis(snapshot);
+  if (generatedAt !== undefined) {
+    const appliedGeneratedAt = snapshotState.appliedGeneratedAt;
+    if (appliedGeneratedAt !== undefined && generatedAt < appliedGeneratedAt) {
+      return false;
+    }
+    snapshotState.appliedGeneratedAt = generatedAt;
+  }
+
   const summary = snapshotSummary(snapshot);
   if (Array.isArray(snapshot.clients)) {
     queryClient.setQueryData<Client[]>(['clients'], snapshot.clients);
@@ -240,19 +278,21 @@ function applyConsoleSnapshot(queryClient: EventStreamQueryClient, snapshot: Con
       summary,
     });
   }
+  return true;
 }
 
-async function resyncConsoleSnapshot(queryClient: EventStreamQueryClient) {
-  const snapshotRequestId = ++consoleSnapshotRequestSeq;
+async function resyncConsoleSnapshot(queryClient: EventStreamQueryClient, snapshotState: EventStreamSnapshotState) {
+  const snapshotRequestId = ++snapshotState.requestSeq;
   logEventStreamDiagnostic('snapshot_request_start', { eventType: 'snapshot_request', snapshotRequestId });
   const snapshot = await api.get<ConsoleSnapshot>('/api/console/snapshot');
-  logEventStreamDiagnostic('snapshot_request_apply', {
-    eventType: 'snapshot_request',
-    clientId: snapshot.clients?.[0]?.id,
-    snapshotRequestId,
-    tunnels: summarizeClientTunnelStates(snapshot.clients),
-  });
-  applyConsoleSnapshot(queryClient, snapshot);
+  const diagnostic = snapshotDiagnostic('snapshot_request', snapshot, snapshotRequestId);
+  if (snapshotRequestId !== snapshotState.requestSeq) {
+    logEventStreamDiagnostic('snapshot_request_stale', diagnostic);
+    return false;
+  }
+  const applied = applyConsoleSnapshot(queryClient, snapshotState, snapshot);
+  logEventStreamDiagnostic(applied ? 'snapshot_request_apply' : 'snapshot_request_stale', diagnostic);
+  return applied;
 }
 
 function invalidateConsoleSnapshotQueries(queryClient: EventStreamQueryClient) {
@@ -261,10 +301,12 @@ function invalidateConsoleSnapshotQueries(queryClient: EventStreamQueryClient) {
   queryClient.invalidateQueries({ queryKey: ['server-status'] });
 }
 
-function resyncConsoleSnapshotSafely(queryClient: EventStreamQueryClient, setStatus?: (status: ConnectionStatus) => void) {
-  return resyncConsoleSnapshot(queryClient)
-    .then(() => {
-      setStatus?.('connected');
+function resyncConsoleSnapshotSafely(queryClient: EventStreamQueryClient, snapshotState: EventStreamSnapshotState, setStatus?: (status: ConnectionStatus) => void) {
+  return resyncConsoleSnapshot(queryClient, snapshotState)
+    .then((applied) => {
+      if (applied) {
+        setStatus?.('connected');
+      }
     })
     .catch((error) => {
       console.warn('Failed to resync console snapshot:', error);
@@ -305,17 +347,13 @@ function getTunnelChangedClientIds(event: TunnelChangedEvent) {
   ].filter((clientId): clientId is string => Boolean(clientId))));
 }
 
-export function applyEventForDiagnostics(queryClient: EventStreamQueryClient, setStatus: (status: ConnectionStatus) => void, eventType: string, data: string) {
+export function applyEventForDiagnostics(queryClient: EventStreamQueryClient, setStatus: (status: ConnectionStatus) => void, snapshotState: EventStreamSnapshotState, eventType: string, data: string) {
   switch (eventType) {
     case 'snapshot': {
       const parsed = parseEventPayload(data, isConsoleSnapshot);
       if (parsed) {
-        logEventStreamDiagnostic('sse_snapshot_apply', {
-          eventType,
-          clientId: parsed.clients?.[0]?.id,
-          tunnels: summarizeClientTunnelStates(parsed.clients),
-        });
-        applyConsoleSnapshot(queryClient, parsed);
+        const applied = applyConsoleSnapshot(queryClient, snapshotState, parsed);
+        logEventStreamDiagnostic(applied ? 'sse_snapshot_apply' : 'sse_snapshot_stale', snapshotDiagnostic(eventType, parsed));
       }
       return;
     }
@@ -369,7 +407,7 @@ export function applyEventForDiagnostics(queryClient: EventStreamQueryClient, se
             client.id === parsed.client_id ? { ...client, info, online: true } : client,
           );
         });
-        void resyncConsoleSnapshotSafely(queryClient, setStatus);
+        void resyncConsoleSnapshotSafely(queryClient, snapshotState, setStatus);
       }
       return;
     case 'client_offline':
@@ -384,7 +422,7 @@ export function applyEventForDiagnostics(queryClient: EventStreamQueryClient, se
             client.id === parsed.client_id ? { ...client, online: false } : client,
           ),
         );
-        void resyncConsoleSnapshotSafely(queryClient, setStatus);
+        void resyncConsoleSnapshotSafely(queryClient, snapshotState, setStatus);
       }
       return;
     case 'tunnel_changed':
@@ -437,7 +475,7 @@ export function applyEventForDiagnostics(queryClient: EventStreamQueryClient, se
         );
         queryClient.invalidateQueries({ queryKey: ['client-tunnels'] });
         queryClient.invalidateQueries({ queryKey: ['client-traffic'] });
-        void resyncConsoleSnapshotSafely(queryClient, setStatus);
+        void resyncConsoleSnapshotSafely(queryClient, snapshotState, setStatus);
       }
       return;
     default:
@@ -490,6 +528,7 @@ export function useEventStream() {
       return;
     }
 
+    const snapshotState = createEventStreamSnapshotState();
     let cancelled = false;
     let activeController: AbortController | null = null;
     let hasConnected = false;
@@ -523,7 +562,7 @@ export function useEventStream() {
           }
 
           if (isReconnect) {
-            await resyncConsoleSnapshotSafely(queryClient, setStatus);
+            await resyncConsoleSnapshotSafely(queryClient, snapshotState, setStatus);
           }
 
           hasConnected = true;
@@ -535,12 +574,15 @@ export function useEventStream() {
 
           while (!cancelled) {
             const { done, value } = await reader.read();
+            if (cancelled) {
+              return;
+            }
             if (done) {
               throw new Error('event stream closed');
             }
 
             buffer += decoder.decode(value, { stream: true });
-            buffer = parseSSE(buffer, (eventType, data) => applyEventForDiagnostics(queryClient, setStatus, eventType, data));
+            buffer = parseSSE(buffer, (eventType, data) => applyEventForDiagnostics(queryClient, setStatus, snapshotState, eventType, data));
           }
         } catch (error) {
           if (cancelled) {

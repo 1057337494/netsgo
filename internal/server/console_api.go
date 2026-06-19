@@ -90,9 +90,7 @@ func (s *Server) handleAPIStatus(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAPIConsoleSnapshot(w http.ResponseWriter, r *http.Request) {
 	snapshot := s.collectSnapshot()
-	if os.Getenv("NETSGO_DEBUG_TUNNEL_EVENTS") == "1" {
-		log.Printf("🔎 console_snapshot clients=%d tunnels=%s", len(snapshot.Clients), summarizeSnapshotTunnelStates(snapshot.Clients))
-	}
+	log.Printf("🔎 console_snapshot clients=%d tunnels=%s", len(snapshot.Clients), summarizeSnapshotTunnelStates(snapshot.Clients))
 	encodeJSON(w, http.StatusOK, snapshot)
 }
 

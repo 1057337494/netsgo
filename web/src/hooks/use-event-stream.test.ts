@@ -3,7 +3,7 @@ import { QueryClient } from '@tanstack/react-query';
 
 import type { Client, ProxyConfig } from '@/types';
 
-import { applyEventForDiagnostics } from './use-event-stream';
+import { applyEventForDiagnostics, createEventStreamSnapshotState } from './use-event-stream';
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void;
@@ -65,10 +65,15 @@ function tunnelChangedEvent(runtimeState: ProxyConfig['runtime_state'], action: 
   });
 }
 
-function snapshotResponse(runtimeState: ProxyConfig['runtime_state']) {
-  return new Response(JSON.stringify({
+function snapshotPayload(runtimeState: ProxyConfig['runtime_state'], generatedAt?: string) {
+  return JSON.stringify({
     clients: [createClient(runtimeState)],
-  }), {
+    generated_at: generatedAt,
+  });
+}
+
+function snapshotResponse(runtimeState: ProxyConfig['runtime_state']) {
+  return new Response(snapshotPayload(runtimeState), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
   });
@@ -88,7 +93,7 @@ async function flushAsyncWork() {
 }
 
 describe('use-event-stream diagnostics', () => {
-  test('documents current race: an older console snapshot can overwrite a newer tunnel_changed state', async () => {
+  test('keeps newer tunnel_changed state when an older console snapshot resolves later', async () => {
     const queryClient = new QueryClient();
     queryClient.setQueryData<Client[]>(['clients'], [createClient('pending')]);
 
@@ -102,10 +107,11 @@ describe('use-event-stream diagnostics', () => {
 
     try {
       const statuses: string[] = [];
-      applyEventForDiagnostics(queryClient, (status) => statuses.push(status), 'tunnel_changed', tunnelChangedEvent('pending', 'pending'));
+      const snapshotState = createEventStreamSnapshotState();
+      applyEventForDiagnostics(queryClient, (status) => statuses.push(status), snapshotState, 'tunnel_changed', tunnelChangedEvent('pending', 'pending'));
       await waitForRequests(requests, 1);
 
-      applyEventForDiagnostics(queryClient, (status) => statuses.push(status), 'tunnel_changed', tunnelChangedEvent('exposed', 'restored'));
+      applyEventForDiagnostics(queryClient, (status) => statuses.push(status), snapshotState, 'tunnel_changed', tunnelChangedEvent('exposed', 'restored'));
       await waitForRequests(requests, 2);
 
       expect(queryClient.getQueryData<Client[]>(['clients'])?.[0]?.proxies?.[0]?.runtime_state).toBe('exposed');
@@ -117,10 +123,38 @@ describe('use-event-stream diagnostics', () => {
       requests[0].resolve(snapshotResponse('pending'));
       await flushAsyncWork();
 
-      expect(queryClient.getQueryData<Client[]>(['clients'])?.[0]?.proxies?.[0]?.runtime_state).toBe('pending');
-      expect(statuses).toEqual(['connected', 'connected']);
+      expect(queryClient.getQueryData<Client[]>(['clients'])?.[0]?.proxies?.[0]?.runtime_state).toBe('exposed');
+      expect(statuses).toEqual(['connected']);
     } finally {
       globalThis.fetch = originalFetch;
+      queryClient.clear();
+    }
+  });
+
+  test('ignores older SSE snapshots after a newer snapshot has been applied', () => {
+    const queryClient = new QueryClient();
+    const snapshotState = createEventStreamSnapshotState();
+
+    try {
+      applyEventForDiagnostics(
+        queryClient,
+        () => undefined,
+        snapshotState,
+        'snapshot',
+        snapshotPayload('exposed', '2026-05-08T01:00:02Z'),
+      );
+      expect(queryClient.getQueryData<Client[]>(['clients'])?.[0]?.proxies?.[0]?.runtime_state).toBe('exposed');
+
+      applyEventForDiagnostics(
+        queryClient,
+        () => undefined,
+        snapshotState,
+        'snapshot',
+        snapshotPayload('pending', '2026-05-08T01:00:01Z'),
+      );
+
+      expect(queryClient.getQueryData<Client[]>(['clients'])?.[0]?.proxies?.[0]?.runtime_state).toBe('exposed');
+    } finally {
       queryClient.clear();
     }
   });
