@@ -4,6 +4,20 @@ project_name: netsgo
 
 release:
   prerelease: auto
+  header: |
+    ## Quick Install / Upgrade
+
+    **One-line install:**
+
+    ```bash
+    curl -fsSL https://netsgo.zs.uy/install.sh | sh{{ if .Prerelease }} -s -- --channel beta{{ end }}
+    ```
+
+    **One-line upgrade:**
+
+    ```bash
+    curl -fsSL https://netsgo.zs.uy/upgrade.sh | sh -s -- -y{{ if .Prerelease }} --channel beta{{ end }}
+    ```
 
 builds:
   - id: netsgo-linux
