@@ -7,10 +7,10 @@ x-netsgo-e2e-tools: &netsgo-e2e-tools
 
 services:
   server:
-    image: ${NETSGO_SERVER_IMAGE:-netsgo-e2e:local}
     # Cross-version harnesses override image values and must start with
     # --no-build so Compose does not rebuild these tags from the current tree.
     <<: *netsgo-e2e-tools
+    image: ${NETSGO_SERVER_IMAGE:-netsgo-e2e:local}
     hostname: system-server
     command:
       - server
@@ -99,9 +99,9 @@ services:
       - target-backend
 
   target-client:
-    image: ${NETSGO_TARGET_CLIENT_IMAGE:-netsgo-e2e:local}
     # See server note: compat/upgrade runs must prebuild images and use --no-build.
     <<: *netsgo-e2e-tools
+    image: ${NETSGO_TARGET_CLIENT_IMAGE:-netsgo-e2e:local}
     hostname: ${NETSGO_TARGET_CLIENT_HOSTNAME:-system-target-client}
     restart: unless-stopped
     entrypoint:
@@ -125,9 +125,9 @@ services:
       - target-backend
 
   ingress-client:
-    image: ${NETSGO_INGRESS_CLIENT_IMAGE:-netsgo-e2e:local}
     # See server note: compat/upgrade runs must prebuild images and use --no-build.
     <<: *netsgo-e2e-tools
+    image: ${NETSGO_INGRESS_CLIENT_IMAGE:-netsgo-e2e:local}
     hostname: ${NETSGO_INGRESS_CLIENT_HOSTNAME:-system-ingress-client}
     restart: unless-stopped
     entrypoint:
