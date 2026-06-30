@@ -401,7 +401,7 @@ export const zhCN = {
     emptyRange: '该时间范围内暂无流量数据',
     trendTitle: '隧道流量趋势',
     range60s: '实时 60 秒 · 每秒采样 · 推送更新',
-    range24h: '最近 24 小时 · 按分钟聚合 · 自动刷新',
+    range24h: '最近 24 小时 · 每 5 分钟聚合 · 自动刷新',
     range7d: '最近 7 天 · 按小时聚合 · 自动刷新',
     rangeDefault: '最近 1 小时 · 按分钟聚合 · 自动刷新',
     tunnelCount: '{{count}} 条隧道',

@@ -399,7 +399,7 @@ export const enUS = {
     emptyRange: 'No traffic data in this time range',
     trendTitle: 'Tunnel traffic trend',
     range60s: 'Live 60 seconds · per-second samples · push updates',
-    range24h: 'Last 24 hours · minute aggregation · auto refresh',
+    range24h: 'Last 24 hours · 5-minute aggregation · auto refresh',
     range7d: 'Last 7 days · hourly aggregation · auto refresh',
     rangeDefault: 'Last hour · minute aggregation · auto refresh',
     tunnelCount: '{{count}} tunnels',

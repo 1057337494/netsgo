@@ -499,7 +499,7 @@ func (s *Server) proxyAcceptLoop(client *ClientConn, tunnel *ProxyTunnel, listen
 }
 
 // handleProxyConn handles a single external connection: opens a stream on the yamux session,
-// writes the StreamHeader (proxyName), then relays data bidirectionally.
+// writes the DataStreamHeader with tunnel/revision metadata, then relays data bidirectionally.
 func (s *Server) handleProxyConn(client *ClientConn, tunnel *ProxyTunnel, listener net.Listener, extConn net.Conn) {
 	defer func() { _ = extConn.Close() }()
 

@@ -127,7 +127,7 @@ make test-system-e2e-capability-loss
 
 This target builds the normal current E2E image plus a dedicated `e2e_capability_loss` image. The dedicated image omits `tcp_service` from reported target capabilities at compile time, then `TestSystemCapabilityLossReconcileE2E` replaces a live target client with that image and verifies an existing TCP server-expose tunnel becomes `error`, exposes a `capability_not_supported` issue, and releases the server TCP listener. This is a test image, not a product runtime switch.
 
-GitHub Actions also provides a manual `Cross-Version E2E` workflow. It is intentionally `workflow_dispatch` only. The workflow first runs the stable-only baseline, then builds the current E2E image, then optionally runs `COMPAT_MODE=full`, the upgrade/rollback matrix, and the focused capability-loss reconciliation E2E. Use it before merging or releasing the payload split implementation when local Docker time is expensive or when an auditable CI run is needed. Each phase tears down its Compose project so the default host ports can be reused by the next matrix.
+GitHub Actions also provides a manual `Cross-Version E2E` workflow. It is intentionally `workflow_dispatch` only. The workflow first runs the stable-only baseline, then builds the current E2E image, then optionally runs `COMPAT_MODE=full`, the upgrade/rollback matrix, and the focused capability-loss reconciliation E2E. Use it before compatibility-sensitive changes or releases when local Docker time is expensive or when an auditable CI run is needed. Each phase tears down its Compose project so the default host ports can be reused by the next matrix.
 
 Legacy flat provision compatibility fixtures live under `internal/client/testdata/`:
 

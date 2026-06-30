@@ -2,7 +2,7 @@
 
 ## Status
 
-Partial done in SOCKS5; Open for FK/CHECK hardening
+Open for FK/CHECK hardening
 
 ## Severity
 
@@ -10,25 +10,32 @@ Medium
 
 ## Why it matters
 
-资源锁表缺少 FK 和 `resource_kind` CHECK，崩溃或旧 bug 可能留下孤儿锁或非法 kind。
+资源锁冲突检测已经承担端口/host 互斥，但 `tunnel_resource_locks` 表缺少 FK 和 `resource_kind` CHECK。崩溃、旧 bug 或手工写库仍可能留下孤儿锁或非法 kind。
 
 ## Current evidence
 
-`tunnel_resource_locks` 当前包含 `resource_key`、`tunnel_id`、`resource_kind`、`client_id`、`created_at`，但未声明 FK/CHECK。
+已完成：
+
+- SOCKS5 listen 与普通 TCP listen 复用同一个 TCP resource key。
+- server/client ingress 资源冲突在创建/更新前检查。
+- hard delete 会删除对应 resource lock。
+
+仍未完成：
+
+- `tunnel_resource_locks` 当前包含 `resource_key`、`tunnel_id`、`resource_kind`、`client_id`、`created_at`，但未声明 FK。
+- `resource_kind` 没有 DB CHECK。
+- 没有针对脏数据迁移的明确策略：失败、清理、还是从 `tunnels` 重建。
 
 主要代码位置：
 
 - `internal/server/migrations/005_unified_tunnel_storage.sql`
 - `internal/server/store.go` 的 resource lock 生成与写入逻辑
 - `internal/server/storage_schema_test.go`
+- `internal/server/unified_storage_test.go`
 
 ## Recommended direction
 
-SOCKS5 CONNECT 本次必须保证 `socks5_listen` 与普通 `tcp_listen` 竞争同一个 bind ip + port 资源。FK/CHECK 硬化应单独迁移并明确脏数据策略：迁移前检测并失败，或从 `tunnels` 表重建 locks。不要盲目 copy 旧 locks 到带约束的新表。
-
-## Why not in SOCKS5 CONNECT PR
-
-SOCKS5 需要端口互斥语义正确，这部分不能后置。FK/CHECK 硬化会引入脏数据迁移策略和额外失败模式，应单独验证。
+单独做 DB constraint hardening。迁移必须先明确脏数据策略：迁移前检测并失败，或从 `tunnels` 表重建 locks。不要盲目 copy 旧 locks 到带约束的新表。
 
 ## Validation needed
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Partial done in SOCKS5; Open for full CHECK relaxation
+Open for full CHECK relaxation
 
 ## Severity
 
@@ -10,26 +10,32 @@ Medium
 
 ## Why it matters
 
-当前 DB 用 enum-like CHECK 限制 `ingress_type` / `target_type`。每新增 endpoint type 都需要重建表。
+当前 DB 仍用 enum-like CHECK 限制 `ingress_type` / `target_type`。每新增 endpoint type 都需要 table rebuild migration，而不是只在 Go 层注册新类型。
 
 ## Current evidence
 
-`tunnels` 表存在 `CHECK (ingress_type IN (...))` 与 `CHECK (target_type IN (...))`。
+已完成：
+
+- `008_socks5_endpoint_types.sql` 已把 CHECK 扩展到 `socks5_listen` / `socks5_connect_handler`。
+- protocol 层已有对应常量。
+
+仍未完成：
+
+- `tunnels` 表仍存在 `CHECK (ingress_type IN (...))` 与 `CHECK (target_type IN (...))`。
+- 插件式或更频繁新增 endpoint type 时仍需要 rebuild table。
+- endpoint 组合校验还没有完全替代 DB enum CHECK 的约束职责。
 
 主要代码位置：
 
 - `internal/server/migrations/005_unified_tunnel_storage.sql`
+- `internal/server/migrations/008_socks5_endpoint_types.sql`
 - `internal/server/storage_schema.go`
 - `internal/server/unified_tunnel_api.go`
 - `internal/server/store.go`
 
 ## Recommended direction
 
-SOCKS5 CONNECT 本次只扩展 CHECK 到已知类型：`socks5_listen` / `socks5_connect_handler`。长期若要支持插件式 endpoint，应把 endpoint 组合校验集中到 Go 层，并用统一兼容矩阵覆盖所有写路径。
-
-## Why not in SOCKS5 CONNECT PR
-
-完全放松 CHECK 会移除 DB 兜底，必须同时审计 legacy/v1、v2、restore、测试辅助等所有写路径，范围超过 SOCKS5。
+如果 endpoint type 会继续增长，应把 endpoint type 与 topology 组合校验集中到 Go 层，并决定 DB 是否只保留 shape-level 约束。完全放松 CHECK 会移除 DB 兜底，必须同时审计 legacy/v1、v2、restore、测试辅助和 migration 写路径。
 
 ## Validation needed
 

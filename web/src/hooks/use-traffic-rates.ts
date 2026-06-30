@@ -20,9 +20,9 @@ const RANGE_WINDOW_CONFIG: Record<ClientTrafficRange, { pointCount: number; buck
     divisor: 60,
   },
   '24h': {
-    pointCount: 24 * 60,
-    bucketMs: 60_000,
-    divisor: 60,
+    pointCount: 24 * 12,
+    bucketMs: 300_000,
+    divisor: 300,
   },
   '7d': {
     pointCount: 7 * 24,
@@ -80,16 +80,17 @@ export function buildAggregatedTrafficRates(
     }
 
     for (const point of item.points) {
-      const timestamp = new Date(point.bucket_start).getTime();
-      const existing = pointsMap.get(timestamp) ?? { in: 0, out: 0 };
+      const rawTimestamp = new Date(point.bucket_start).getTime();
+      const bucketTimestamp = Math.floor(rawTimestamp / config.bucketMs) * config.bucketMs;
+      const existing = pointsMap.get(bucketTimestamp) ?? { in: 0, out: 0 };
 
       existing.in += point.ingress_bytes;
       existing.out += point.egress_bytes;
-      pointsMap.set(timestamp, existing);
+      pointsMap.set(bucketTimestamp, existing);
     }
   }
 
-  const endTimestamp = Math.floor(nowMs / config.bucketMs) * config.bucketMs - config.bucketMs;
+  const endTimestamp = Math.floor(nowMs / config.bucketMs) * config.bucketMs;
 
   return Array.from({ length: config.pointCount }, (_, index) => {
     const timestamp = endTimestamp - (config.pointCount - index - 1) * config.bucketMs;

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Link, useMatch, useRouterState, useNavigate } from '@tanstack/react-router';
 import type { Client } from '@/types';
+import { cn } from '@/lib/utils';
 import { getClientDisplayName } from '@/lib/client-utils';
 import { useAddClientDialog } from './add-client-dialog-context';
 import { api } from '@/lib/api';
@@ -51,6 +52,8 @@ const LANGUAGE_LABEL_KEYS: Record<SupportedLocale, string> = {
 
 const DOCS_URL = 'https://netsgo.zs.uy';
 
+const NAV_ITEM_CLASS = 'rounded-md font-medium text-muted-foreground hover:text-foreground';
+
 export function ClientSidebar({ clients, isLoading }: ClientSidebarProps) {
   const { t, i18n } = useTranslation();
   const { openAddClientDialog } = useAddClientDialog();
@@ -93,7 +96,7 @@ export function ClientSidebar({ clients, isLoading }: ClientSidebarProps) {
   return (
     <Sidebar collapsible="offcanvas">
       <SidebarHeader className="p-0">
-        <div className="h-14 flex flex-row items-center px-4 shrink-0 mt-0 mb-0 border-b border-border/40">
+        <div className="h-14 flex flex-row items-center px-4 shrink-0 mt-0 mb-0 border-b border-sidebar-border">
           <Link
             to="/dashboard"
             className="flex items-center gap-2.5 w-full select-none hover:opacity-90 transition-opacity"
@@ -114,9 +117,9 @@ export function ClientSidebar({ clients, isLoading }: ClientSidebarProps) {
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
-                isActive={isOverview} 
+                isActive={isOverview}
                 tooltip="Dashboard"
-                className="data-[active=true]:bg-background data-[active=true]:shadow-sm data-[active=true]:border-l-2 data-[active=true]:border-primary data-[active=true]:text-foreground relative -ml-2 pl-4 rounded-none rounded-r-md font-medium"
+                className={NAV_ITEM_CLASS}
               >
                 <Link to="/dashboard">
                   <LayoutDashboard className="h-4 w-4" />
@@ -129,7 +132,7 @@ export function ClientSidebar({ clients, isLoading }: ClientSidebarProps) {
 
         {/* 客户端列表 */}
         <SidebarGroup className="group/clients mt-4">
-          <SidebarGroupLabel className="text-[11px] font-bold text-muted-foreground/50 uppercase tracking-[0.2em] px-2 mb-1 transition-colors group-hover/clients:text-muted-foreground/70">
+          <SidebarGroupLabel className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-[0.2em] px-2 mb-1 transition-colors group-hover/clients:text-muted-foreground">
             {t('dashboard.clients')}
           </SidebarGroupLabel>
           <SidebarGroupAction
@@ -178,7 +181,7 @@ export function ClientSidebar({ clients, isLoading }: ClientSidebarProps) {
                         asChild
                         isActive={isSelected}
                         tooltip={client.display_name ? `${client.display_name} (${client.info.hostname})` : client.info.hostname}
-                        className={`data-[active=true]:bg-background data-[active=true]:shadow-[0_1px_2px_rgba(0,0,0,0.05)] data-[active=true]:border-l-[3px] data-[active=true]:border-primary data-[active=true]:text-foreground relative -ml-2 pl-4 rounded-none rounded-r-md font-medium text-muted-foreground hover:text-foreground ${!isOnline && !isSelected ? 'opacity-60' : ''}`}
+                        className={cn(NAV_ITEM_CLASS, !isOnline && !isSelected && 'opacity-60')}
                       >
                         <Link
                           to="/dashboard/clients/$clientId"
@@ -218,7 +221,7 @@ export function ClientSidebar({ clients, isLoading }: ClientSidebarProps) {
                 asChild
                 isActive={pathname.startsWith('/dashboard/admin')}
                 tooltip={t('dashboard.systemSettings')}
-                className="data-[active=true]:bg-background data-[active=true]:shadow-[0_1px_2px_rgba(0,0,0,0.05)] data-[active=true]:border-l-[3px] data-[active=true]:border-primary data-[active=true]:text-foreground relative -ml-2 pl-4 rounded-none rounded-r-md font-medium text-muted-foreground hover:text-foreground"
+                className={NAV_ITEM_CLASS}
               >
                 <Link to="/dashboard/admin/config">
                   <Settings className="h-4 w-4" />
@@ -230,7 +233,7 @@ export function ClientSidebar({ clients, isLoading }: ClientSidebarProps) {
               <SidebarMenuButton
                 asChild
                 tooltip={t('common.docs')}
-                className="relative -ml-2 pl-4 rounded-none rounded-r-md font-medium text-muted-foreground hover:text-foreground"
+                className={NAV_ITEM_CLASS}
               >
                 <a href={DOCS_URL} target="_blank" rel="noreferrer">
                   <BookOpen className="h-4 w-4" />
@@ -241,7 +244,7 @@ export function ClientSidebar({ clients, isLoading }: ClientSidebarProps) {
             <SidebarMenuItem>
               <SidebarMenuButton
                 tooltip={t('common.language')}
-                className="relative -ml-2 pl-4 rounded-none rounded-r-md font-medium text-muted-foreground hover:text-foreground"
+                className={NAV_ITEM_CLASS}
                 onClick={() => void i18n.changeLanguage(nextLanguage)}
               >
                 <Languages className="h-4 w-4" />
@@ -254,7 +257,7 @@ export function ClientSidebar({ clients, isLoading }: ClientSidebarProps) {
                 <AlertDialogTrigger asChild>
                   <SidebarMenuButton
                     tooltip={t('auth.logout')}
-                    className="relative -ml-2 pl-4 rounded-none rounded-r-md font-medium text-muted-foreground hover:text-foreground"
+                    className={NAV_ITEM_CLASS}
                   >
                     <LogOut className="h-4 w-4" />
                     <span>{t('auth.logout')}</span>

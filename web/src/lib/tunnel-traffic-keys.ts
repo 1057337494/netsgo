@@ -17,5 +17,11 @@ export function getTrafficSeriesKey(item: TrafficItem) {
   if (item.tunnel_name && item.tunnel_type) {
     return `${item.tunnel_type}:${item.tunnel_name}`;
   }
+  if (item.tunnel_name) {
+    return `name:${item.tunnel_name}`;
+  }
+  if (item.tunnel_type) {
+    return `type:${item.tunnel_type}`;
+  }
   return 'metadata_missing';
 }

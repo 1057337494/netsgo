@@ -98,13 +98,16 @@ func TestDecodeDataStreamHeaderRejectsMalformedFrames(t *testing.T) {
 }
 
 func TestDecodeDataStreamHeaderRejectsLegacyStreamHeaderMagic(t *testing.T) {
+	// NGSH was the removed legacy StreamHeader magic; DataStreamHeader must reject it.
+	const legacyStreamHeaderMagic = "NGSH"
+
 	valid := validTestDataStreamHeader()
 	validBytes, err := WriteDataStreamHeaderToBytes(valid)
 	if err != nil {
 		t.Fatalf("encode valid header: %v", err)
 	}
 	legacyMagic := append([]byte(nil), validBytes...)
-	copy(legacyMagic[:4], StreamHeaderMagic)
+	copy(legacyMagic[:4], legacyStreamHeaderMagic)
 
 	if _, err := DecodeDataStreamHeader(bytes.NewReader(legacyMagic)); err == nil {
 		t.Fatal("expected legacy stream header magic to be rejected")

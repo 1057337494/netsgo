@@ -1,8 +1,8 @@
-# Secrets management
+# Secret store 后续治理
 
 ## Status
 
-Partial done in SOCKS5; Open for secret store
+Open for secret store
 
 ## Severity
 
@@ -10,44 +10,46 @@ High
 
 ## Why it matters
 
-SOCKS5 username/password、HTTP Basic auth 等 ingress auth 凭据如果长期以明文或可直接恢复形式保存，会造成真实安全风险。
+SOCKS5 username/password 与 HTTP Basic auth 的本期明文落库问题已经处理，但 endpoint config 仍缺少统一 secret 引用模型。后续如果继续把不同凭据散落在 JSON config、管理员配置或未来 endpoint 配置里，轮换、删除、迁移和审计都会变成局部特判。
 
 ## Current evidence
 
-现有 endpoint config 使用 JSON 字段承载配置，缺少统一 secret 引用模型。SOCKS5 CONNECT 本次实现仍必须先解决本期 auth 凭据的基本安全要求。
+已完成：
+
+- SOCKS5 与 HTTP Basic auth password 通过 `internal/credential` 的 Argon2id hash 保存。
+- API 提交 `password_hash` 会被拒绝，hash 是 server-owned 字段。
+- tunnel 详情、列表、事件可见的 endpoint config 会移除 `password` / `password_hash`。
+- server -> target client provisioning 不携带 ingress auth password hash；只有 ingress 角色需要认证配置。
+
+仍未完成：
+
+- 没有统一 `secrets` table 或 secret store。
+- endpoint config 仍直接保存 `password_hash`，不是保存 secret ID 引用。
+- 没有 secret rotation / deletion / migration 的通用流程。
+- 没有 encryption-at-rest 设计。
 
 主要代码位置：
 
 - endpoint config 类型与 JSON 字段：`pkg/protocol/types.go`
 - unified API config decode/encode：`internal/server/unified_tunnel_api.go`
 - 存储 JSON config：`internal/server/store.go`
+- password hash/verify：`internal/credential/password.go`、`internal/server/socks5_config.go`
 - 前端表单和模型：`web/src/lib/tunnel-model.ts`、`web/src/components/custom/tunnel/`
 
 ## Recommended direction
 
-分两层处理：
+单独设计通用 secret infrastructure：
 
-1. SOCKS5 CONNECT 本次必须实现：
-   - password 不明文落库；
-   - 存储 `password_hash`；
-   - 使用 Argon2id 作为密码哈希方案；
-   - API、日志、事件、导出统一脱敏；
-   - HTTP Basic Auth 与 SOCKS5 username/password 复用 credential hashing / verify / redact 工具。
-2. 后续独立治理：
-   - secrets table 或 secret store；
-   - secret ID 引用；
-   - secret rotation；
-   - encryption-at-rest；
-   - 多种 secret 类型统一管理。
-
-## Why not in SOCKS5 CONNECT PR
-
-通用 secret store 是安全基础设施，不应阻塞 SOCKS5 CONNECT。但是这不代表本期可以明文保存 SOCKS5/HTTP auth password。本期必须做到 password hash 与脱敏；本 issue 仅追踪后续通用 secret infrastructure。
+- `secrets` table 或等价 secret store；
+- endpoint config 只保存 secret ID / version reference；
+- secret rotation、删除、引用计数或 orphan 检测；
+- 旧 endpoint config 中 `password_hash` 的迁移策略；
+- HTTP Basic、SOCKS5 auth、未来 API/token/第三方凭据复用同一模型。
 
 ## Validation needed
 
-- 本期 SOCKS5/HTTP ingress auth password 不明文落库。
-- 密码不出现在日志、事件、API 响应、诊断导出。
-- password hash verify 有测试覆盖。
-- secret 删除/轮换有定义。
-- 迁移旧明文配置有路径。
+- API 不能返回 secret 值、hash 值或可直接用于认证的材料。
+- endpoint 创建/更新通过 secret reference 工作。
+- secret rotation 后既有 tunnel 可继续运行或按设计重新 provision。
+- secret 删除时能阻止仍被引用的 secret 被误删，或有明确 cascade/error 语义。
+- 旧 `password_hash` config 能迁移到新模型，失败时不丢配置。

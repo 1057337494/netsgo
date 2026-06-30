@@ -14,7 +14,7 @@ legacy v1 `/api/clients/{id}/tunnels` 与 unified v2 `/api/tunnels` 可能以不
 
 ## Current evidence
 
-两套 API 使用不同请求结构和创建/下发顺序。
+两套 API 使用不同请求结构和创建/下发顺序。当前前端创建/更新 tunnel 走 unified `/api/tunnels`，但 legacy v1 `/api/clients/{id}/tunnels` 仍存在并由 `ProxyNewRequest` 驱动。
 
 主要代码位置：
 
@@ -26,11 +26,11 @@ legacy v1 `/api/clients/{id}/tunnels` 与 unified v2 `/api/tunnels` 可能以不
 
 让 v1 内部转译到 v2 的统一服务层，或者明确 v1 只作为兼容入口并限制支持范围。
 
-SOCKS5 CONNECT 首期应明确只支持 v2 `/api/tunnels` 创建；v1 若收到 SOCKS5 类型应返回清晰错误。
+SOCKS5 和后续 endpoint 类型默认只支持 v2 `/api/tunnels` 创建；v1 若收到不可表达的类型，应返回清晰错误，而不是扩展 `ProxyNewRequest`。
 
-## Why not in SOCKS5 CONNECT PR
+## Why separate
 
-SOCKS5 可以只支持 v2 API。统一 v1/v2 会扩大回归面，不是 SOCKS5 的正确前置条件。
+统一 v1/v2 会触及旧 API、管理面兼容、provisioning 顺序、offline managed tunnel 和 upgrade/rollback 行为，必须独立治理。
 
 ## Validation needed
 

@@ -3,15 +3,17 @@ import { useTranslation } from 'react-i18next';
 import { Line, LineChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { AlertCircle, Activity } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   type ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
 } from '@/components/ui/chart';
 import { useClientTraffic } from '@/hooks/use-client-traffic';
-import { formatBytes } from '@/lib/format';
+import { formatTrafficRate } from '@/lib/format';
 import { getTrafficSeriesKey, getTunnelSeriesKey } from '@/lib/tunnel-traffic-keys';
 import type { ClientTrafficRange, ClientTrafficResponse, ProxyConfig, ProxyType } from '@/types';
 
@@ -46,9 +48,20 @@ const CHART_COLORS = [
   'var(--chart-5)',
 ] as const;
 
-const ZERO_FILLED_RANGE_CONFIG: Partial<Record<ClientTrafficRange, { pointCount: number; bucketMs: number }>> = {
-  '24h': { pointCount: 24 * 60, bucketMs: 60_000 },
-  '7d': { pointCount: 7 * 24, bucketMs: 3_600_000 },
+// Each range renders an average rate (bytes/sec): the total bytes inside one displayed
+// bucket are divided by bucketSeconds. gridBucketMs/gridPointCount build a dense, evenly
+// spaced timeline that is zero-filled and, for coarser ranges, aggregates finer source
+// buckets into it. 60s has no grid because the server already returns a dense per-second
+// series. Ranges not listed here (e.g. 1h) are intentionally unsupported by this chart
+// until they get a RANGE_OPTIONS entry and a getRangeSummary case.
+const RANGE_CHART_CONFIG: Partial<Record<ClientTrafficRange, {
+  bucketSeconds: number;
+  gridBucketMs?: number;
+  gridPointCount?: number;
+}>> = {
+  '60s': { bucketSeconds: 1 },
+  '24h': { bucketSeconds: 300, gridBucketMs: 300_000, gridPointCount: 24 * 12 },
+  '7d': { bucketSeconds: 3_600, gridBucketMs: 3_600_000, gridPointCount: 7 * 24 },
 };
 
 function getTunnelColor(index: number) {
@@ -57,11 +70,6 @@ function getTunnelColor(index: number) {
 
 function getTrafficSeriesName(item: ClientTrafficResponse['items'][number], t: ReturnType<typeof useTranslation>['t']) {
   return item.tunnel_name ?? t('traffic.deletedTunnel', { id: item.tunnel_id ?? 'unknown' });
-}
-
-function formatTrafficValue(value: number, range?: ClientTrafficRange) {
-  const formatted = formatBytes(value).replace('.0 ', ' ');
-  return range === '60s' ? `${formatted}/s` : formatted;
 }
 
 function formatXAxisLabel(timestamp: number, range: ClientTrafficRange, language: string) {
@@ -104,15 +112,16 @@ function getErrorMessage(error: unknown, t: ReturnType<typeof useTranslation>['t
   return t('traffic.loadFailed');
 }
 
-function buildZeroFilledTimestamps(range: ClientTrafficRange, nowMs = Date.now()) {
-  const config = ZERO_FILLED_RANGE_CONFIG[range];
-  if (!config) {
+function buildGridTimestamps(range: ClientTrafficRange, nowMs = Date.now()) {
+  const config = RANGE_CHART_CONFIG[range];
+  const { gridBucketMs, gridPointCount } = config ?? {};
+  if (!gridBucketMs || !gridPointCount) {
     return [];
   }
 
-  const endTimestamp = Math.floor(nowMs / config.bucketMs) * config.bucketMs;
-  return Array.from({ length: config.pointCount }, (_, index) => (
-    endTimestamp - (config.pointCount - index - 1) * config.bucketMs
+  const endTimestamp = Math.floor(nowMs / gridBucketMs) * gridBucketMs;
+  return Array.from({ length: gridPointCount }, (_, index) => (
+    endTimestamp - (gridPointCount - index - 1) * gridBucketMs
   ));
 }
 
@@ -166,20 +175,26 @@ function buildTrafficTrendChartState(
     return config;
   }, {});
 
+  const { bucketSeconds = 1, gridBucketMs } = RANGE_CHART_CONFIG[range] ?? {};
   const pointsByTunnel = new Map<string, Map<number, number>>();
-  const timestamps = new Set<number>(buildZeroFilledTimestamps(range));
+  const timestamps = new Set<number>(buildGridTimestamps(range));
 
   for (const item of data?.items ?? []) {
-    const pointMap = new Map<number, number>();
-
-    for (const point of item.points) {
-      const timestamp = new Date(point.bucket_start).getTime();
-      pointMap.set(timestamp, point.total_bytes);
-      timestamps.add(timestamp);
+    const seriesKey = getTrafficSeriesKey(item);
+    let pointMap = pointsByTunnel.get(seriesKey);
+    if (!pointMap) {
+      pointMap = new Map<number, number>();
+      pointsByTunnel.set(seriesKey, pointMap);
     }
 
-    const seriesKey = getTrafficSeriesKey(item);
-    pointsByTunnel.set(seriesKey, pointMap);
+    for (const point of item.points) {
+      const rawTimestamp = new Date(point.bucket_start).getTime();
+      const bucketTimestamp = gridBucketMs
+        ? Math.floor(rawTimestamp / gridBucketMs) * gridBucketMs
+        : rawTimestamp;
+      pointMap.set(bucketTimestamp, (pointMap.get(bucketTimestamp) ?? 0) + point.total_bytes);
+      timestamps.add(bucketTimestamp);
+    }
   }
 
   const chartData = Array.from(timestamps)
@@ -187,7 +202,8 @@ function buildTrafficTrendChartState(
     .map<ChartRow>((timestamp) => {
       const row: ChartRow = { timestamp };
       for (const tunnel of tunnelSeries) {
-        row[tunnel.key] = pointsByTunnel.get(tunnel.key)?.get(timestamp) ?? 0;
+        const bytes = pointsByTunnel.get(tunnel.key)?.get(timestamp) ?? 0;
+        row[tunnel.key] = bytes / bucketSeconds;
       }
       return row;
     });
@@ -225,19 +241,24 @@ export function TrafficChart({ clientId, tunnels }: TrafficChartProps) {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="inline-flex items-center gap-1 self-start rounded-lg border border-border/60 bg-muted/40 p-1">
           {RANGE_OPTIONS.map((option) => {
             const active = option.value === range;
             return (
-              <Button
+              <button
                 key={option.value}
                 type="button"
-                size="sm"
-                variant={active ? 'default' : 'outline'}
+                aria-pressed={active}
                 onClick={() => setRange(option.value)}
+                className={cn(
+                  'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                  active
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
               >
                 {option.label}
-              </Button>
+              </button>
             );
           })}
         </div>
@@ -278,7 +299,8 @@ export function TrafficChart({ clientId, tunnels }: TrafficChartProps) {
                 tickLine={false}
                 tickMargin={10}
                 width="auto"
-                tickFormatter={(value) => formatTrafficValue(Number(value), range)}
+                domain={[0, 'auto']}
+                tickFormatter={(value) => formatTrafficRate(Number(value))}
               />
               <ChartTooltip
                 content={(
@@ -294,7 +316,7 @@ export function TrafficChart({ clientId, tunnels }: TrafficChartProps) {
                       <>
                         <span className="text-muted-foreground">{chartConfig[String(name)]?.label ?? String(name)}</span>
                         <span className="font-mono font-medium text-foreground tabular-nums">
-                          {formatTrafficValue(Number(value), range)}
+                          {formatTrafficRate(Number(value))}
                         </span>
                       </>
                     )}
@@ -315,6 +337,7 @@ export function TrafficChart({ clientId, tunnels }: TrafficChartProps) {
                   connectNulls
                 />
               ))}
+              <ChartLegend content={<ChartLegendContent className="flex-wrap gap-x-4 gap-y-1" />} />
             </LineChart>
           </ChartContainer>
         </div>

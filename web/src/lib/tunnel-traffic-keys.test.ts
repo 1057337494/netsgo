@@ -21,4 +21,10 @@ describe('tunnel traffic keys', () => {
       points: [],
     })).toBe('tcp:api');
   });
+
+  test('uses partial metadata so distinct orphan series do not collapse', () => {
+    expect(getTrafficSeriesKey({ tunnel_name: 'api', points: [] })).toBe('name:api');
+    expect(getTrafficSeriesKey({ tunnel_type: 'tcp', points: [] })).toBe('type:tcp');
+    expect(getTrafficSeriesKey({ points: [] })).toBe('metadata_missing');
+  });
 });

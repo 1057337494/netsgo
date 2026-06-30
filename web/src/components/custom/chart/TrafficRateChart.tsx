@@ -11,16 +11,12 @@ import {
 } from '@/components/ui/chart';
 import { useClientTraffic } from '@/hooks/use-client-traffic';
 import { hasTrafficSamples, useAggregatedTrafficRates } from '@/hooks/use-traffic-rates';
-import { formatBytes } from '@/lib/format';
+import { formatTrafficRate } from '@/lib/format';
 import type { ProxyConfig } from '@/types';
 
 interface TrafficRateChartProps {
   clientId: string;
   tunnelFilter?: Pick<ProxyConfig, 'name' | 'type'>[];
-}
-
-function formatTrafficValue(value: number) {
-  return formatBytes(value).replace('.0 ', ' ');
 }
 
 function formatXAxisLabel(timestamp: number, language: string) {
@@ -88,7 +84,8 @@ export function TrafficRateChart({ clientId, tunnelFilter }: TrafficRateChartPro
                 tickLine={false}
                 tickMargin={10}
                 width={80}
-                tickFormatter={(value) => formatTrafficValue(Number(value)) + '/s'}
+                domain={[0, 'auto']}
+                tickFormatter={(value) => formatTrafficRate(Number(value))}
               />
               <ChartTooltip
                 content={(
@@ -104,7 +101,7 @@ export function TrafficRateChart({ clientId, tunnelFilter }: TrafficRateChartPro
                       <>
                         <span className="text-muted-foreground">{chartConfig[String(name)]?.label ?? String(name)}</span>
                         <span className="font-mono font-medium text-foreground tabular-nums">
-                          {formatTrafficValue(Number(value))}/s
+                          {formatTrafficRate(Number(value))}
                         </span>
                       </>
                     )}

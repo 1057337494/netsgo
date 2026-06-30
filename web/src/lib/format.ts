@@ -11,6 +11,10 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / Math.pow(1024, idx)).toFixed(1)} ${UNITS[idx]}`;
 }
 
+export function formatTrafficRate(bytesPerSec: number): string {
+  return `${formatBytes(bytesPerSec).replace('.0 ', ' ')}/s`;
+}
+
 function currentLocale() {
   return i18n.resolvedLanguage || i18n.language || DEFAULT_LOCALE;
 }

@@ -6,15 +6,13 @@
 
 | Issue | Severity | 状态 | 说明 |
 |---|---|---|---|
-| [`proxy-provision-payload-split`](./issue/proxy-provision-payload-split.md) | High | Planned for one-pass completion | 一次性完成 unified runtime 对 `ProxyNewRequest` 的脱钩，隔离 legacy create/provision DTO，并删除 `proxyRequestFromTunnelSpec` |
 | [`p2p-data-transport-policy`](./issue/p2p-data-transport-policy.md) | High | Open | client_to_client 数据通道中继/P2P preferred/P2P only 策略 |
-| [`secrets-management`](./issue/secrets-management.md) | High | Partial done in SOCKS5 | password hash/脱敏已完成；通用 secret store 后续治理 |
+| [`secrets-management`](./issue/secrets-management.md) | High | Open for secret store | SOCKS5/HTTP auth password hash 与 API 脱敏已完成；剩余是通用 secret store、轮换和迁移 |
 | [`runtime-state-active-exposed`](./issue/runtime-state-active-exposed.md) | Medium | Open | DB 使用 `active`，协议/API 使用 `exposed` 的双命名债务 |
-| [`endpoint-type-extensibility`](./issue/endpoint-type-extensibility.md) | Medium | Partial done in SOCKS5 | CHECK 已扩展至 socks5_listen/socks5_connect_handler；长期是否移除 DB enum CHECK 后续治理 |
-| [`tunnel-resource-locks-hardening`](./issue/tunnel-resource-locks-hardening.md) | Medium | Partial done in SOCKS5 | SOCKS5/TCP 端口互斥已完成；FK/CHECK 与脏数据处理后续治理 |
+| [`endpoint-type-extensibility`](./issue/endpoint-type-extensibility.md) | Medium | Open for CHECK relaxation | CHECK 已扩展至 `socks5_listen` / `socks5_connect_handler`；剩余是是否移除 DB enum CHECK |
+| [`tunnel-resource-locks-hardening`](./issue/tunnel-resource-locks-hardening.md) | Medium | Open for DB constraints | SOCKS5/TCP 端口互斥已完成；剩余是 resource lock 的 FK/CHECK 和脏数据迁移策略 |
 | [`v1-v2-api-unification`](./issue/v1-v2-api-unification.md) | Medium | Open | 统一 legacy v1 与 unified v2 API 写路径 |
 | [`socks5-udp-associate`](./issue/socks5-udp-associate.md) | Medium | Open | SOCKS5 UDP ASSOCIATE 支持设计 |
-| [`stream-header-legacy-cleanup`](./issue/stream-header-legacy-cleanup.md) | Low | Open | 旧 StreamHeader helper 清理 |
 | [`p2p-placeholder-cleanup`](./issue/p2p-placeholder-cleanup.md) | Low | Open | P2P 占位消息/状态的归档或实现计划 |
 
 ## 原则

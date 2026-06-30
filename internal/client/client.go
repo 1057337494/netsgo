@@ -60,7 +60,7 @@ type Client struct {
 	done                chan struct{}
 	dataSession         *yamux.Session // yamux session for the data channel
 	dataMu              sync.RWMutex
-	proxies             sync.Map // proxy_name -> ProxyNewRequest
+	proxies             sync.Map // tunnel_id or legacy proxy name -> ProxyNewRequest
 	socks5Targets       sync.Map // tunnel_id -> clientSOCKS5TargetRuntime
 	fixedTargetRuntimes sync.Map // tunnel_id -> fixedServiceTargetRuntime
 	tunnels             sync.Map // tunnel_id:role -> *clientTunnelRuntime

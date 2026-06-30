@@ -38,7 +38,7 @@ describe('buildAggregatedTrafficRates', () => {
       ],
     };
 
-    const points = buildAggregatedTrafficRates(data, '1h', undefined, Date.UTC(2026, 3, 19, 11, 0, 0));
+    const points = buildAggregatedTrafficRates(data, '1h', undefined, Date.UTC(2026, 3, 19, 10, 59, 30));
 
     expect(points).toHaveLength(60);
     expect(points[57]).toEqual({
@@ -89,7 +89,7 @@ describe('buildAggregatedTrafficRates', () => {
       ],
     };
 
-    const points = buildAggregatedTrafficRates(data, '1h', undefined, Date.UTC(2026, 3, 19, 11, 0, 0));
+    const points = buildAggregatedTrafficRates(data, '1h', undefined, Date.UTC(2026, 3, 19, 10, 59, 30));
 
     expect(points.at(-1)).toEqual({
       timestamp: Date.UTC(2026, 3, 19, 10, 59, 0),
@@ -129,7 +129,7 @@ describe('buildAggregatedTrafficRates', () => {
       ],
     };
 
-    const points = buildAggregatedTrafficRates(data, '1h', tunnelFilter, Date.UTC(2026, 3, 19, 11, 0, 0));
+    const points = buildAggregatedTrafficRates(data, '1h', tunnelFilter, Date.UTC(2026, 3, 19, 10, 59, 30));
 
     expect(points.at(-1)).toEqual({
       timestamp: Date.UTC(2026, 3, 19, 10, 59, 0),
@@ -169,7 +169,7 @@ describe('buildAggregatedTrafficRates', () => {
       ],
     };
 
-    const points = buildAggregatedTrafficRates(data, '1h', tunnelFilter, Date.UTC(2026, 3, 19, 11, 0, 0));
+    const points = buildAggregatedTrafficRates(data, '1h', tunnelFilter, Date.UTC(2026, 3, 19, 10, 59, 30));
 
     expect(points.at(-1)).toEqual({
       timestamp: Date.UTC(2026, 3, 19, 10, 59, 0),
@@ -215,7 +215,7 @@ describe('buildAggregatedTrafficRates', () => {
       data,
       '1h',
       [{ id: 'tun-a', name: 'api', type: 'tcp' }],
-      Date.UTC(2026, 3, 19, 11, 0, 0),
+      Date.UTC(2026, 3, 19, 10, 59, 30),
     );
 
     expect(points.at(-1)).toEqual({
@@ -244,7 +244,7 @@ describe('buildAggregatedTrafficRates', () => {
       ],
     };
 
-    const points = buildAggregatedTrafficRates(data, '1h', undefined, Date.UTC(2026, 3, 19, 11, 0, 0));
+    const points = buildAggregatedTrafficRates(data, '1h', undefined, Date.UTC(2026, 3, 19, 10, 59, 30));
 
     expect(points.at(-1)).toEqual({
       timestamp: Date.UTC(2026, 3, 19, 10, 59, 0),
@@ -272,13 +272,44 @@ describe('buildAggregatedTrafficRates', () => {
       ],
     };
 
-    const points = buildAggregatedTrafficRates(data, '1h', undefined, Date.UTC(2026, 3, 19, 11, 0, 0));
+    const points = buildAggregatedTrafficRates(data, '1h', undefined, Date.UTC(2026, 3, 19, 10, 59, 30));
 
     expect(hasTrafficSamples(data)).toBe(true);
     expect(points.at(-1)).toEqual({
       timestamp: Date.UTC(2026, 3, 19, 10, 59, 0),
       inRate: 2,
       outRate: 1,
+    });
+  });
+
+  test('aggregates five 1-minute source buckets into one 5-minute grid point for 24h', () => {
+    const data: ClientTrafficResponse = {
+      resolution: 'minute',
+      items: [
+        {
+          tunnel_name: 'api',
+          tunnel_type: 'tcp',
+          points: [
+            { bucket_start: isoAt(55), ingress_bytes: 300, egress_bytes: 150, total_bytes: 450 },
+            { bucket_start: isoAt(56), ingress_bytes: 300, egress_bytes: 150, total_bytes: 450 },
+            { bucket_start: isoAt(57), ingress_bytes: 300, egress_bytes: 150, total_bytes: 450 },
+            { bucket_start: isoAt(58), ingress_bytes: 300, egress_bytes: 150, total_bytes: 450 },
+            { bucket_start: isoAt(59), ingress_bytes: 300, egress_bytes: 150, total_bytes: 450 },
+          ],
+        },
+      ],
+    };
+
+    // nowMs 10:59:30 -> endTimestamp 10:59 -> last grid bucket is 10:55 (300_000ms grid)
+    const points = buildAggregatedTrafficRates(data, '24h', undefined, Date.UTC(2026, 3, 19, 10, 59, 30));
+
+    expect(points).toHaveLength(24 * 12);
+    // Five 1-minute buckets (10:55-10:59) snap into the 10:55 grid bucket.
+    // Total ingress 1500 / divisor 300 = 5 bytes/s; egress 750 / 300 = 2.5 -> 2.5
+    expect(points.at(-1)).toEqual({
+      timestamp: Date.UTC(2026, 3, 19, 10, 55, 0),
+      inRate: 5,
+      outRate: 2.5,
     });
   });
 
