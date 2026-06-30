@@ -2,8 +2,10 @@ package updater
 
 import (
 	"fmt"
+	"netsgo/internal/svcmgr"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -189,30 +191,93 @@ func TestUpgradeRepairsServiceEnvFilesBeforeRestart(t *testing.T) {
 	}
 }
 
+func TestRepairServiceEnvFilesEnablesServerLoopbackManagementHost(t *testing.T) {
+	origNewServiceLayout := newServiceLayoutFunc
+	t.Cleanup(func() {
+		newServiceLayoutFunc = origNewServiceLayout
+	})
+
+	tmpDir := t.TempDir()
+	serverEnvPath := filepath.Join(tmpDir, "server.env")
+	clientEnvPath := filepath.Join(tmpDir, "client.env")
+	if err := os.WriteFile(serverEnvPath, []byte("NETSGO_PORT=9527\nNETSGO_ALLOW_LOOPBACK_MANAGEMENT_HOST=false\nNETSGO_CUSTOM=value\n"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(clientEnvPath, []byte("NETSGO_SERVER=https://panel.example.com\n"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	newServiceLayoutFunc = func(role svcmgr.Role) svcmgr.ServiceLayout {
+		layout := svcmgr.NewLayout(role)
+		switch role {
+		case svcmgr.RoleServer:
+			layout.EnvPath = serverEnvPath
+		case svcmgr.RoleClient:
+			layout.EnvPath = clientEnvPath
+		}
+		return layout
+	}
+
+	err := repairServiceEnvFiles([]string{svcmgr.UnitName(svcmgr.RoleServer), svcmgr.UnitName(svcmgr.RoleClient)})
+	if err != nil {
+		t.Fatalf("repairServiceEnvFiles() failed: %v", err)
+	}
+	serverContent, err := os.ReadFile(serverEnvPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverText := string(serverContent)
+	if !strings.Contains(serverText, "NETSGO_ALLOW_LOOPBACK_MANAGEMENT_HOST=true\n") {
+		t.Fatalf("server env should enable loopback management Host after upgrade, got %q", serverText)
+	}
+	if !strings.Contains(serverText, "NETSGO_CUSTOM=value") {
+		t.Fatalf("server env should preserve unrelated entries, got %q", serverText)
+	}
+	clientContent, err := os.ReadFile(clientEnvPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(clientContent) != "NETSGO_SERVER=https://panel.example.com\n" {
+		t.Fatalf("client env should remain unchanged, got %q", string(clientContent))
+	}
+}
+
 func TestUpgradeRollsBackWhenServiceEnvRepairFails(t *testing.T) {
 	origDisableAndStop := disableAndStopFunc
 	origEnableAndStart := enableAndStartFunc
 	origDetectInstalledUnits := detectInstalledUnitsFunc
 	origBinaryPath := installedBinaryPath
 	origRepairServiceEnvFiles := repairServiceEnvFilesFunc
+	origNewServiceLayout := newServiceLayoutFunc
 	t.Cleanup(func() {
 		disableAndStopFunc = origDisableAndStop
 		enableAndStartFunc = origEnableAndStart
 		detectInstalledUnitsFunc = origDetectInstalledUnits
 		installedBinaryPath = origBinaryPath
 		repairServiceEnvFilesFunc = origRepairServiceEnvFiles
+		newServiceLayoutFunc = origNewServiceLayout
 	})
 
 	tmpDir := t.TempDir()
 	installedPath := filepath.Join(tmpDir, "installed-netsgo")
 	newPath := filepath.Join(tmpDir, "new-netsgo")
+	serverEnvPath := filepath.Join(tmpDir, "server.env")
 	if err := os.WriteFile(installedPath, []byte("old binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(newPath, []byte("new binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(serverEnvPath, []byte("NETSGO_ALLOW_LOOPBACK_MANAGEMENT_HOST=false\n"), 0o640); err != nil {
+		t.Fatal(err)
+	}
 	installedBinaryPath = installedPath
+	newServiceLayoutFunc = func(role svcmgr.Role) svcmgr.ServiceLayout {
+		layout := svcmgr.NewLayout(role)
+		if role == svcmgr.RoleServer {
+			layout.EnvPath = serverEnvPath
+		}
+		return layout
+	}
 
 	var restarted []string
 	detectInstalledUnitsFunc = func() []string { return []string{"netsgo-server.service"} }
@@ -234,6 +299,13 @@ func TestUpgradeRollsBackWhenServiceEnvRepairFails(t *testing.T) {
 	if string(data) != "old binary" {
 		t.Fatalf("expected old binary restored after repair failure, got %q", string(data))
 	}
+	envData, err := os.ReadFile(serverEnvPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(envData) != "NETSGO_ALLOW_LOOPBACK_MANAGEMENT_HOST=false\n" {
+		t.Fatalf("expected service env restored after repair failure, got %q", string(envData))
+	}
 	if len(restarted) != 1 || restarted[0] != "netsgo-server.service" {
 		t.Fatalf("expected stopped service to restart after repair failure, got %v", restarted)
 	}
@@ -244,23 +316,36 @@ func TestUpgradeRestoresOldBinaryWhenStartFails(t *testing.T) {
 	origEnableAndStart := enableAndStartFunc
 	origDetectInstalledUnits := detectInstalledUnitsFunc
 	origBinaryPath := installedBinaryPath
+	origNewServiceLayout := newServiceLayoutFunc
 	t.Cleanup(func() {
 		disableAndStopFunc = origDisableAndStop
 		enableAndStartFunc = origEnableAndStart
 		detectInstalledUnitsFunc = origDetectInstalledUnits
 		installedBinaryPath = origBinaryPath
+		newServiceLayoutFunc = origNewServiceLayout
 	})
 
 	tmpDir := t.TempDir()
 	installedPath := filepath.Join(tmpDir, "installed-netsgo")
 	newPath := filepath.Join(tmpDir, "new-netsgo")
+	serverEnvPath := filepath.Join(tmpDir, "server.env")
 	if err := os.WriteFile(installedPath, []byte("old binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(newPath, []byte("new binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(serverEnvPath, []byte("NETSGO_ALLOW_LOOPBACK_MANAGEMENT_HOST=false\nNETSGO_CUSTOM=value\n"), 0o640); err != nil {
+		t.Fatal(err)
+	}
 	installedBinaryPath = installedPath
+	newServiceLayoutFunc = func(role svcmgr.Role) svcmgr.ServiceLayout {
+		layout := svcmgr.NewLayout(role)
+		if role == svcmgr.RoleServer {
+			layout.EnvPath = serverEnvPath
+		}
+		return layout
+	}
 
 	detectInstalledUnitsFunc = func() []string { return []string{"netsgo-server.service"} }
 	disableAndStopFunc = func(unit string) error { return nil }
@@ -277,6 +362,17 @@ func TestUpgradeRestoresOldBinaryWhenStartFails(t *testing.T) {
 	}
 	if string(data) != "old binary" {
 		t.Fatalf("expected old binary restored, got %q", string(data))
+	}
+	envData, err := os.ReadFile(serverEnvPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	envText := string(envData)
+	if !strings.Contains(envText, "NETSGO_ALLOW_LOOPBACK_MANAGEMENT_HOST=false\n") {
+		t.Fatalf("expected service env restored after start failure, got %q", envText)
+	}
+	if !strings.Contains(envText, "NETSGO_CUSTOM=value") {
+		t.Fatalf("expected service env custom entries preserved after rollback, got %q", envText)
 	}
 }
 
