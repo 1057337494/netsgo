@@ -1,11 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ApiError, api, tunnelApi } from '@/lib/api';
+import { tunnelApi } from '@/lib/api';
 import {
   buildClientToClientTunnelSpecCreateRequest,
-  buildTunnelMutationPayload,
   buildTunnelSpecCreateRequest,
 } from '@/lib/tunnel-model';
-import { isDefaultAllowAllSourceCIDRs } from '@/lib/source-cidrs';
 import type { CreateTunnelInput, TunnelClientRole, TunnelTopology, UpdateTunnelInput } from '@/types';
 
 function invalidateTunnelQueries(queryClient: ReturnType<typeof useQueryClient>) {
@@ -33,37 +31,6 @@ export function useClientTunnelsByRole(clientId: string | undefined, role: Tunne
   });
 }
 
-export function shouldUseLegacyTunnelEndpoint(error: unknown, topology?: TunnelTopology) {
-  if (topology === 'client_to_client') {
-    return false;
-  }
-  return error instanceof ApiError && (error.status === 404 || error.status === 405);
-}
-
-function isAllowAllOrUnsetSourceCIDRs(values: string[] | undefined) {
-  const normalized = (values ?? []).map((value) => value.trim()).filter(Boolean);
-  return normalized.length === 0 || isDefaultAllowAllSourceCIDRs(normalized);
-}
-
-export function canFallbackToLegacyTunnelEndpoint(data: Pick<CreateTunnelInput, 'type' | 'topology' | 'allowed_source_cidrs' | 'http_auth'>, error: unknown) {
-  if (!shouldUseLegacyTunnelEndpoint(error, data.topology)) {
-    return false;
-  }
-  if (data.type === 'socks5') {
-    return false;
-  }
-  if (!isAllowAllOrUnsetSourceCIDRs(data.allowed_source_cidrs)) {
-    return false;
-  }
-  if (data.type === 'http' && data.http_auth?.enabled) {
-    return false;
-  }
-  return true;
-}
-
-export function buildLegacyClientTunnelPath(clientId: string, suffix = '') {
-  return `/api/clients/${encodeURIComponent(clientId)}/tunnels${suffix}`;
-}
 
 function buildTunnelSpec(data: {
   topology?: TunnelTopology;
@@ -109,27 +76,7 @@ export function useCreateTunnel() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: CreateTunnelInput) => {
-      try {
-        return await tunnelApi.create(buildTunnelSpec(data));
-      } catch (error) {
-        if (!canFallbackToLegacyTunnelEndpoint(data, error)) {
-          throw error;
-        }
-        try {
-          return await api.post<{ success: boolean; message: string; remote_port: number }>(
-            buildLegacyClientTunnelPath(data.clientId),
-            {
-              name: data.name,
-              type: data.type,
-              ...buildTunnelMutationPayload(data),
-            },
-          );
-        } catch {
-          throw error;
-        }
-      }
-    },
+    mutationFn: (data: CreateTunnelInput) => tunnelApi.create(buildTunnelSpec(data)),
     onSuccess: () => {
       invalidateTunnelQueries(queryClient);
     },
@@ -140,13 +87,7 @@ export function useResumeTunnel() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ clientId, tunnelId }: { clientId: string; tunnelId: string }) =>
-      tunnelApi.resume(tunnelId).catch((error) => {
-        if (!shouldUseLegacyTunnelEndpoint(error)) {
-          throw error;
-        }
-        return api.put(buildLegacyClientTunnelPath(clientId, `/${encodeURIComponent(tunnelId)}/resume`));
-      }),
+    mutationFn: ({ tunnelId }: { clientId: string; tunnelId: string }) => tunnelApi.resume(tunnelId),
     onSuccess: () => {
       invalidateTunnelQueries(queryClient);
     },
@@ -157,13 +98,7 @@ export function useStopTunnel() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ clientId, tunnelId }: { clientId: string; tunnelId: string }) =>
-      tunnelApi.stop(tunnelId).catch((error) => {
-        if (!shouldUseLegacyTunnelEndpoint(error)) {
-          throw error;
-        }
-        return api.put(buildLegacyClientTunnelPath(clientId, `/${encodeURIComponent(tunnelId)}/stop`));
-      }),
+    mutationFn: ({ tunnelId }: { clientId: string; tunnelId: string }) => tunnelApi.stop(tunnelId),
     onSuccess: () => {
       invalidateTunnelQueries(queryClient);
     },
@@ -174,13 +109,7 @@ export function useDeleteTunnel() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ clientId, tunnelId }: { clientId: string; tunnelId: string }) =>
-      tunnelApi.delete(tunnelId).catch((error) => {
-        if (!shouldUseLegacyTunnelEndpoint(error)) {
-          throw error;
-        }
-        return api.delete(buildLegacyClientTunnelPath(clientId, `/${encodeURIComponent(tunnelId)}`));
-      }),
+    mutationFn: ({ tunnelId }: { clientId: string; tunnelId: string }) => tunnelApi.delete(tunnelId),
     onSuccess: () => {
       invalidateTunnelQueries(queryClient);
     },
@@ -191,26 +120,11 @@ export function useUpdateTunnel() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: UpdateTunnelInput) => {
-      try {
-        return await tunnelApi.update(data.tunnelId, {
-          expected_revision: data.expected_revision,
-          spec: buildTunnelSpec(data),
-        });
-      } catch (error) {
-        if (!canFallbackToLegacyTunnelEndpoint(data, error)) {
-          throw error;
-        }
-        try {
-          return await api.put(buildLegacyClientTunnelPath(data.clientId, `/${encodeURIComponent(data.tunnelId)}`), {
-            name: data.name,
-            ...buildTunnelMutationPayload(data),
-          });
-        } catch {
-          throw error;
-        }
-      }
-    },
+    mutationFn: (data: UpdateTunnelInput) =>
+      tunnelApi.update(data.tunnelId, {
+        expected_revision: data.expected_revision,
+        spec: buildTunnelSpec(data),
+      }),
     onSuccess: () => {
       invalidateTunnelQueries(queryClient);
     },

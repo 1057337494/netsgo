@@ -353,6 +353,7 @@ const (
 	TunnelMutationErrorCodeServerAddrConflict         = "server_addr_conflict"
 	TunnelMutationErrorCodeHTTPTunnelConflict         = "http_tunnel_conflict"
 	TunnelMutationErrorCodeTunnelBusy                 = "tunnel_busy"
+	TunnelMutationErrorCodeResumeNotAllowed           = "tunnel_resume_not_allowed"
 	TunnelMutationErrorCodeUnknownClient              = "unknown_client"
 	TunnelMutationErrorCodeCapabilityNotSupported     = "capability_not_supported"
 	TunnelMutationErrorCodeSameIngressAndTargetClient = "same_ingress_and_target_client"

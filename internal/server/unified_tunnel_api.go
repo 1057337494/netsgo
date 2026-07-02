@@ -206,6 +206,17 @@ func (s *Server) resumeUnifiedTunnel(w http.ResponseWriter, current tunnelSpecAP
 		encodeJSON(w, status, payload)
 		return
 	}
+	if !canResumeTunnel(storedTunnelToProxyConfig(stored)) {
+		message := "only stopped or error tunnels can be resumed"
+		encodeJSON(w, http.StatusBadRequest, tunnelMutationErrorResponse{
+			Success:   false,
+			Error:     message,
+			Message:   message,
+			ErrorCode: protocol.TunnelMutationErrorCodeResumeNotAllowed,
+			Code:      protocol.TunnelMutationErrorCodeResumeNotAllowed,
+		})
+		return
+	}
 	if err := s.store.UpdateStates(current.OwnerClientID, stored.Name, protocol.ProxyDesiredStateRunning, protocol.ProxyRuntimeStateOffline, ""); err != nil {
 		status, payload := tunnelMutationErrorStatusAndBody(err)
 		encodeJSON(w, status, payload)
@@ -841,6 +852,16 @@ func (s *Server) storedTunnelFromUnifiedRequest(req tunnelCreateRequestAPI, exis
 	if req.TransportPolicy != tunnelTransportPolicyServerRelayOnly {
 		return StoredTunnel{}, newProxyRequestValidationError(fmt.Errorf("transport policy %q requires direct transport support, which is not available in this build", req.TransportPolicy), "transport_policy", protocol.TunnelMutationErrorCodeDirectTransportUnavailable, http.StatusBadRequest)
 	}
+	if err := validateBandwidthSettings(req.BandwidthSettings); err != nil {
+		field := ""
+		switch {
+		case req.BandwidthSettings.IngressBPS < 0:
+			field = protocol.TunnelMutationFieldIngressBPS
+		case req.BandwidthSettings.EgressBPS < 0:
+			field = protocol.TunnelMutationFieldEgressBPS
+		}
+		return StoredTunnel{}, newProxyRequestValidationError(err, field, "", http.StatusBadRequest)
+	}
 	if err := validateUnifiedEndpointCombination(req.Topology, req.Ingress, req.Target); err != nil {
 		return StoredTunnel{}, err
 	}
@@ -1158,9 +1179,14 @@ func (s *Server) registeredClientInfo(clientID string) (RegisteredClient, bool) 
 	return s.auth.adminStore.GetRegisteredClient(clientID)
 }
 
+// clientSupportsTargetType checks whether a registered client advertised support
+// for the given target endpoint type. Clients registered before the capabilities
+// feature (last_capabilities == "{}") have nil capabilities; treat them as
+// supporting the default production endpoint types for backward compatibility.
 func clientSupportsTargetType(capabilities *protocol.ClientCapabilities, targetType string) bool {
 	if capabilities == nil {
-		return false
+		defaults := protocol.DefaultClientCapabilities()
+		capabilities = &defaults
 	}
 	for _, supported := range capabilities.TargetTypes {
 		if supported == targetType {
@@ -1172,7 +1198,8 @@ func clientSupportsTargetType(capabilities *protocol.ClientCapabilities, targetT
 
 func clientSupportsIngressType(capabilities *protocol.ClientCapabilities, ingressType string) bool {
 	if capabilities == nil {
-		return false
+		defaults := protocol.DefaultClientCapabilities()
+		capabilities = &defaults
 	}
 	for _, supported := range capabilities.IngressTypes {
 		if supported == ingressType {
