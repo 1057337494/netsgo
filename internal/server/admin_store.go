@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -398,6 +399,10 @@ func (s *AdminStore) Initialize(username, password, serverAddr string, allowedPo
 
 // validatePassword validates password strength (at least 8 characters, must contain letters and digits).
 func validatePassword(password string) error {
+	if os.Getenv("NETSGO_ALLOW_WEAK_ADMIN_PASSWORD") == "1" {
+		return nil
+	}
+
 	if len(password) < 8 {
 		return fmt.Errorf("password must be at least 8 characters")
 	}

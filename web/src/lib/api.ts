@@ -16,6 +16,8 @@ import type {
   TunnelUpdateRequest,
 } from '@/types';
 
+const apiPrefix = (import.meta.env.VITE_NETSGO_API_PREFIX || '').replace(/\/+$/, '');
+
 class ApiError extends Error {
   status: number;
   statusText: string;
@@ -83,7 +85,7 @@ async function request<T>(
     ...options?.headers,
   });
 
-  const res = await fetch(url, {
+  const res = await fetch(resolveApiUrl(url), {
     ...options,
     headers,
     credentials: 'same-origin',
@@ -128,6 +130,11 @@ async function request<T>(
   if (res.status === 204) return undefined as T;
 
   return res.json() as Promise<T>;
+}
+
+function resolveApiUrl(url: string) {
+  if (!apiPrefix || /^[a-z][a-z\d+\-.]*:\/\//i.test(url)) return url;
+  return `${apiPrefix}/${url.replace(/^\/+/, '')}`;
 }
 
 export const api = {
